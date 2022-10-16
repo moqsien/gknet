@@ -85,3 +85,9 @@ func (that *Eloop) RemoveConn(fd int) {
 	delete(that.ConnList, fd)
 	that.AddConnCount(-1)
 }
+
+func (that *Eloop) ActivateMainLoop() {}
+
+func (that *Eloop) ActivateSubLoop() {}
+
+func (that *Eloop) Run() {}
