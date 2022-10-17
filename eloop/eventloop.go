@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"net"
 	"os"
+	"runtime"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -86,8 +87,34 @@ func (that *Eloop) RemoveConn(fd int) {
 	that.AddConnCount(-1)
 }
 
-func (that *Eloop) ActivateMainLoop() {}
+func (that *Eloop) ActivateMainLoop(l bool) {
+	if l {
+		runtime.LockOSThread()
+		defer runtime.UnlockOSThread()
+	}
+	that.Poller.Start(func(fd int, events uint32) error {
+		return that.Accept(fd, events)
+	})
+}
 
-func (that *Eloop) ActivateSubLoop() {}
+func (that *Eloop) ActivateSubLoop(l bool) {
+	if l {
+		runtime.LockOSThread()
+		defer runtime.UnlockOSThread()
+	}
+	that.Poller.Start(func(fd int, events uint32) error {
+		if conn, found := that.ConnList[fd]; found {
+			if events&poll.WriteEvents != 0 && !conn.OutBuffer.IsEmpty() {
+				if err := conn.WriteToFd(); err != nil {
+					return err
+				}
+			}
+			if events&poll.ReadEvents != 0 {
+				return conn.ReadFromFd()
+			}
+		}
+		return nil
+	})
+}
 
 func (that *Eloop) Run() {}
