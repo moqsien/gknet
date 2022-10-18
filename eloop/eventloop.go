@@ -2,7 +2,6 @@ package eloop
 
 import (
 	"bytes"
-	"net"
 	"os"
 	"runtime"
 	"sync"
@@ -19,8 +18,7 @@ import (
 
 type Eloop struct {
 	*sync.Mutex
-	Listener     net.Listener       // tcp net listener
-	ListenerFD   int                // listener file descriptor
+	Listener     socket.NetListener // net listener
 	Index        int                // index of worker loop
 	Poller       *poll.Poller       // poller
 	EventList    []unix.EpollEvent  // events received
@@ -41,7 +39,7 @@ func (that *Eloop) GetConnCount() int32 {
 
 // TODO: listener
 func (that *Eloop) Accept(_ int, _ uint32) error {
-	nfd, sock, err := unix.Accept(that.ListenerFD)
+	nfd, sock, err := unix.Accept(that.Listener.GetFd())
 	if err != nil {
 		if err == unix.EAGAIN {
 			return nil
