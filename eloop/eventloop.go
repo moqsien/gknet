@@ -21,12 +21,12 @@ type Eloop struct {
 	Listener     socket.NetListener // net listener
 	Index        int                // index of worker loop
 	Poller       *poll.Poller       // poller
-	EventList    []unix.EpollEvent  // events received
 	ConnCount    int32              // number of connections
 	ConnList     map[int]*conn.Conn // list of connections
 	Handler      conn.EventHandler  // Handler for events
 	LastIdleTime time.Time          // Last time that number of connections became zero
 	Cache        bytes.Buffer       // temporary buffer for scattered bytes
+	Balancer     IBalancer          // load balancer
 }
 
 func (that *Eloop) AddConnCount(i int32) {
@@ -58,20 +58,25 @@ func (that *Eloop) Accept(_ int, _ uint32) error {
 	// }
 
 	c := conn.NewTCPConn(nfd, that.Poller, sock, that.Listener.Addr(), remoteAddr, that.Handler)
-	that.Poller.AddRead(c)
-	that.ConnList[c.Fd] = c
-	return c.Open()
+	loop := that.Balancer.Next(c.AddrLocal)
+	that.Poller.AddPriorTask(loop.RegisterConn, c)
+	return err
 }
 
 func (that *Eloop) RegisterConn(arg poll.PollTaskArg) error {
 	c := arg.(*conn.Conn)
 	c.Handler = that.Handler
-	if err := that.Poller.AddRead(c); err != nil {
+	var err error
+	if err = that.Poller.AddRead(c); err != nil {
 		_ = unix.Close(c.Fd)
 		return err
 	}
 	that.ConnList[c.Fd] = c
-	return c.Open()
+	err = c.Open()
+	if err == nil {
+		that.AddConnCount(1)
+	}
+	return err
 }
 
 func (that *Eloop) CloseAllConn() {
@@ -90,6 +95,7 @@ func (that *Eloop) ActivateMainLoop(l bool) {
 		runtime.LockOSThread()
 		defer runtime.UnlockOSThread()
 	}
+	that.Poller.AddRead(that.Listener)
 	that.Poller.Start(func(fd int, events uint32) error {
 		return that.Accept(fd, events)
 	})
