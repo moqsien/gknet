@@ -2,14 +2,11 @@ package eloop
 
 import (
 	"bytes"
-	"os"
 	"runtime"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"time"
-
-	"github.com/moqsien/processes/logger"
-	"golang.org/x/sys/unix"
 
 	"github.com/moqsien/gknet/conn"
 	"github.com/moqsien/gknet/poll"
@@ -37,20 +34,7 @@ func (that *Eloop) GetConnCount() int32 {
 	return atomic.LoadInt32(&that.ConnCount)
 }
 
-// TODO: listener
-func (that *Eloop) Accept(_ int, _ uint32) error {
-	nfd, sock, err := unix.Accept(that.Listener.GetFd())
-	if err != nil {
-		if err == unix.EAGAIN {
-			return nil
-		}
-		logger.Errorf("Accept() failed due to error: %v", err)
-		return os.NewSyscallError("accept", err)
-	}
-	if err = os.NewSyscallError("fcntl nonblock", unix.SetNonblock(nfd, true)); err != nil {
-		return err
-	}
-
+func (that *Eloop) packConn(nfd int, sock syscall.Sockaddr) {
 	remoteAddr := socket.SockaddrToTCPOrUnixAddr(sock)
 	// if el.engine.opts.TCPKeepAlive > 0 && el.ln.Network == "tcp" {
 	// 	err = socket.SetKeepAlivePeriod(nfd, int(el.engine.opts.TCPKeepAlive/time.Second))
@@ -60,6 +44,33 @@ func (that *Eloop) Accept(_ int, _ uint32) error {
 	c := conn.NewTCPConn(nfd, that.Poller, sock, that.Listener.Addr(), remoteAddr, that.Handler)
 	loop := that.Balancer.Next(c.AddrLocal)
 	that.Poller.AddPriorTask(loop.RegisterConn, c)
+}
+
+// TODO: udp
+func (that *Eloop) Accept(_ int, _ uint32) error {
+	nfd, sock, err := syscall.Accept4(that.Listener.GetFd(), syscall.SOCK_NONBLOCK|syscall.SOCK_CLOEXEC)
+	switch err {
+	case nil:
+		that.packConn(nfd, sock)
+		return err
+	default:
+		return err
+	case syscall.ENOSYS:
+	case syscall.EINVAL:
+	case syscall.EACCES:
+	case syscall.EFAULT:
+	}
+	nfd, sock, err = syscall.Accept(that.Listener.GetFd())
+	if err == nil {
+		syscall.CloseOnExec(nfd)
+	} else {
+		return err
+	}
+	if err = syscall.SetNonblock(nfd, true); err != nil {
+		syscall.Close(nfd)
+		return err
+	}
+	that.packConn(nfd, sock)
 	return err
 }
 
@@ -68,7 +79,7 @@ func (that *Eloop) RegisterConn(arg poll.PollTaskArg) error {
 	c.Handler = that.Handler
 	var err error
 	if err = that.Poller.AddRead(c); err != nil {
-		_ = unix.Close(c.Fd)
+		_ = syscall.Close(c.Fd)
 		return err
 	}
 	that.ConnList[c.Fd] = c
