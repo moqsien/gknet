@@ -3,20 +3,26 @@ package socket
 import (
 	"errors"
 	"net"
+	"os"
 	"strings"
-	"syscall"
 
 	"github.com/moqsien/gknet/poll"
 )
 
+type IFile interface {
+	File() (*os.File, error)
+}
+
 type IListener interface {
 	net.Listener
 	poll.IFd
+	IFile
 	IsUDP() bool
 }
 
 type GkListener struct {
 	fd    int
+	file  *os.File
 	addr  net.Addr
 	isUDP bool
 }
@@ -26,7 +32,7 @@ func (that *GkListener) Accept() (net.Conn, error) {
 }
 
 func (that *GkListener) Close() (err error) {
-	err = syscall.Close(that.fd)
+	err = that.file.Close()
 	if err != nil {
 		return
 	}
@@ -39,7 +45,14 @@ func (that *GkListener) Addr() net.Addr {
 	return that.addr
 }
 
+func (that *GkListener) File() (*os.File, error) {
+	return that.file, nil
+}
+
 func (that *GkListener) GetFd() int {
+	if that.fd == -1 && that.file != nil {
+		that.fd = int(that.file.Fd())
+	}
 	return that.fd
 }
 
@@ -47,22 +60,19 @@ func (that *GkListener) IsUDP() bool {
 	return that.isUDP
 }
 
-func ResolveFd(ln interface{}) (fd int, err error) {
+func ResolveFile(ln interface{}) (file *os.File, err error) {
 	switch ln.(type) {
 	case *net.TCPListener:
 		l, _ := ln.(*net.TCPListener)
-		file, _ := l.File()
-		return int(file.Fd()), nil
+		return l.File()
 	case *net.UnixListener:
 		l, _ := ln.(*net.UnixListener)
-		file, _ := l.File()
-		return int(file.Fd()), nil
+		return l.File()
 	case *net.UDPConn:
 		l, _ := ln.(*net.UDPConn)
-		file, _ := l.File()
-		return int(file.Fd()), nil
+		return l.File()
 	default:
-		return -1, errors.New("unsupported Listener")
+		return nil, errors.New("unsupported Listener")
 	}
 }
 
@@ -78,13 +88,14 @@ func Listen(network, address string) (gl IListener, err error) {
 		if err != nil {
 			return nil, err
 		}
-		var fd int
-		fd, err = ResolveFd(l)
+		var file *os.File
+		file, err = ResolveFile(l)
 		if err != nil {
 			return nil, err
 		}
 		gl = &GkListener{
-			fd:    fd,
+			fd:    -1,
+			file:  file,
 			addr:  l.LocalAddr(),
 			isUDP: true,
 		}
@@ -95,37 +106,40 @@ func Listen(network, address string) (gl IListener, err error) {
 	if err != nil {
 		return nil, err
 	}
-	var fd int
-	fd, err = ResolveFd(l)
+	var file *os.File
+	file, err = ResolveFile(l)
 	if err != nil {
 		return nil, err
 	}
 	gl = &GkListener{
-		fd:   fd,
+		fd:   -1,
+		file: file,
 		addr: l.Addr(),
 	}
 	return
 }
 
 func AdaptListener(l net.Listener) (gl IListener, err error) {
-	fd, err := ResolveFd(l)
+	file, err := ResolveFile(l)
 	if err != nil {
 		return nil, err
 	}
 	gl = &GkListener{
-		fd:   fd,
+		fd:   -1,
+		file: file,
 		addr: l.Addr(),
 	}
 	return
 }
 
 func AdaptUDPConn(c *net.UDPConn) (gl IListener, err error) {
-	fd, err := ResolveFd(c)
+	file, err := ResolveFile(c)
 	if err != nil {
 		return nil, err
 	}
 	gl = &GkListener{
-		fd:    fd,
+		fd:    -1,
+		file:  file,
 		addr:  c.LocalAddr(),
 		isUDP: true,
 	}

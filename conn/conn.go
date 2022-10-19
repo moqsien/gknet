@@ -6,19 +6,23 @@ import (
 	"net"
 	"os"
 	"strings"
+	"syscall"
 
 	"github.com/moqsien/processes/logger"
 	"github.com/panjf2000/gnet/v2/pkg/buffer/elastic"
 	"golang.org/x/sys/unix"
 
 	"github.com/moqsien/gknet/poll"
-	"github.com/moqsien/gknet/utils/errs"
+)
+
+const (
+	IovMax = 1024
 )
 
 type Conn struct {
 	Fd         int
 	Poller     *poll.Poller
-	Sock       unix.Sockaddr
+	Sock       syscall.Sockaddr
 	AddrLocal  net.Addr
 	AddrRemote net.Addr
 	OutBuffer  *elastic.Buffer
@@ -31,7 +35,7 @@ type Conn struct {
 }
 
 // new Conn
-func NewTCPConn(fd int, poller *poll.Poller, sa unix.Sockaddr, localAddr, remoteAddr net.Addr, h EventHandler) (c *Conn) {
+func NewTCPConn(fd int, poller *poll.Poller, sa syscall.Sockaddr, localAddr, remoteAddr net.Addr, h EventHandler) (c *Conn) {
 	c = &Conn{
 		Fd:         fd,
 		Sock:       sa,
@@ -42,23 +46,6 @@ func NewTCPConn(fd int, poller *poll.Poller, sa unix.Sockaddr, localAddr, remote
 	}
 	c.OutBuffer, _ = elastic.New(1024)
 	return
-}
-
-/*
-writev
-*/
-func (that *Conn) _writev(fd int, iov [][]byte) (int, error) {
-	if len(iov) == 0 {
-		return 0, nil
-	}
-	return unix.Writev(fd, iov)
-}
-
-func (that *Conn) _readv(fd int, iov [][]byte) (int, error) {
-	if len(iov) == 0 {
-		return 0, nil
-	}
-	return unix.Readv(fd, iov)
 }
 
 /*
@@ -117,43 +104,6 @@ func (that *Conn) write(data []byte) (n int, err error) {
 	return
 }
 
-func (that *Conn) writev(data [][]byte) (n int, err error) {
-	for _, d := range data {
-		n += len(d)
-	}
-
-	if !that.OutBuffer.IsEmpty() {
-		_, _ = that.OutBuffer.Writev(data)
-		return
-	}
-
-	var sent int
-	if sent, err = that._writev(that.Fd, data); err != nil {
-		if err == unix.EAGAIN {
-			that.OutBuffer.Writev(data)
-			err = that.Poller.ModReadWrite(that)
-			return
-		}
-		return -1, that.Close()
-	}
-
-	if sent < n {
-		var pos int
-		for i := range data {
-			bn := len(data[i])
-			if sent < bn {
-				data[i] = data[i][sent:]
-				pos = i
-				break
-			}
-			sent -= bn
-		}
-		_, _ = that.OutBuffer.Writev(data[pos:])
-		err = that.Poller.ModReadWrite(that)
-	}
-	return
-}
-
 func (that *Conn) sendTo(data []byte) error {
 	if that.Sock == nil {
 		return unix.Send(that.Fd, data, 0)
@@ -170,19 +120,6 @@ func (that *Conn) asyncWrite(arg poll.PollTaskArg) (err error) {
 	_, err = that.write(hook.Data)
 	if hook.Go != nil {
 		hook.Go(that)
-	}
-	return
-}
-
-func (that *Conn) asyncWritev(arg poll.PollTaskArg) (err error) {
-	if !that.Opened {
-		return
-	}
-
-	hook := arg.(*AsyncWritevHook)
-	_, err = that.writev(hook.Data)
-	if hook.Go != nil {
-		_ = hook.Go(that)
 	}
 	return
 }
@@ -276,22 +213,6 @@ func (that *Conn) AsyncWrite(data []byte, cb ...AsyncCallback) error {
 	}
 
 	return that.Poller.AddTask(that.asyncWrite, &AsyncWriteHook{
-		Go:   callback,
-		Data: data,
-	})
-}
-
-func (that *Conn) AsyncWritev(data [][]byte, cb ...AsyncCallback) error {
-	var callback AsyncCallback
-	if len(cb) > 0 {
-		callback = cb[0]
-	}
-
-	if that.IsUDP {
-		return errs.ErrUnsupportedOp
-	}
-
-	return that.Poller.AddTask(that.asyncWritev, &AsyncWritevHook{
 		Go:   callback,
 		Data: data,
 	})

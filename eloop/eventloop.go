@@ -131,5 +131,3 @@ func (that *Eloop) ActivateSubLoop(l bool) {
 		return nil
 	})
 }
-
-func (that *Eloop) Run() {}
