@@ -18,7 +18,7 @@ import (
 
 type Eloop struct {
 	*sync.Mutex
-	Listener     socket.NetListener // net listener
+	Listener     socket.IListener   // net listener
 	Index        int                // index of worker loop
 	Poller       *poll.Poller       // poller
 	ConnCount    int32              // number of connections
