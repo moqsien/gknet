@@ -28,7 +28,7 @@ type GkListener struct {
 }
 
 func (that *GkListener) Accept() (net.Conn, error) {
-	return nil, errors.New("accept not implemented!")
+	return nil, errors.New("Accept not implemented for GkListener!")
 }
 
 func (that *GkListener) Close() (err error) {
@@ -72,7 +72,7 @@ func ResolveFile(ln interface{}) (file *os.File, err error) {
 		l, _ := ln.(*net.UDPConn)
 		return l.File()
 	default:
-		return nil, errors.New("unsupported Listener")
+		return nil, errors.New("Unsupported listener!")
 	}
 }
 

@@ -3,7 +3,6 @@ package eloop
 import (
 	"bytes"
 	"runtime"
-	"sync"
 	"sync/atomic"
 	"syscall"
 	"time"
@@ -14,7 +13,6 @@ import (
 )
 
 type Eloop struct {
-	*sync.Mutex
 	Listener     socket.IListener   // net listener
 	Index        int                // index of worker loop
 	Poller       *poll.Poller       // poller
@@ -34,44 +32,15 @@ func (that *Eloop) GetConnCount() int32 {
 	return atomic.LoadInt32(&that.ConnCount)
 }
 
-func (that *Eloop) packConn(nfd int, sock syscall.Sockaddr) {
-	remoteAddr := socket.SockaddrToTCPOrUnixAddr(sock)
-	// if el.engine.opts.TCPKeepAlive > 0 && el.ln.Network == "tcp" {
-	// 	err = socket.SetKeepAlivePeriod(nfd, int(el.engine.opts.TCPKeepAlive/time.Second))
-	// 	logging.Error(err)
-	// }
-
-	c := conn.NewTCPConn(nfd, that.Poller, sock, that.Listener.Addr(), remoteAddr, that.Handler)
-	loop := that.Balancer.Next(c.AddrLocal)
-	that.Poller.AddPriorTask(loop.RegisterConn, c)
+func (that *Eloop) RemoveConn(fd int) {
+	delete(that.ConnList, fd)
+	that.AddConnCount(-1)
 }
 
-// TODO: udp
-func (that *Eloop) Accept(_ int, _ uint32) error {
-	nfd, sock, err := syscall.Accept4(that.Listener.GetFd(), syscall.SOCK_NONBLOCK|syscall.SOCK_CLOEXEC)
-	switch err {
-	case nil:
-		that.packConn(nfd, sock)
-		return err
-	default:
-		return err
-	case syscall.ENOSYS:
-	case syscall.EINVAL:
-	case syscall.EACCES:
-	case syscall.EFAULT:
+func (that *Eloop) CloseAllConn() {
+	for _, c := range that.ConnList {
+		c.Close()
 	}
-	nfd, sock, err = syscall.Accept(that.Listener.GetFd())
-	if err == nil {
-		syscall.CloseOnExec(nfd)
-	} else {
-		return err
-	}
-	if err = syscall.SetNonblock(nfd, true); err != nil {
-		syscall.Close(nfd)
-		return err
-	}
-	that.packConn(nfd, sock)
-	return err
 }
 
 func (that *Eloop) RegisterConn(arg poll.PollTaskArg) error {
@@ -90,15 +59,43 @@ func (that *Eloop) RegisterConn(arg poll.PollTaskArg) error {
 	return err
 }
 
-func (that *Eloop) CloseAllConn() {
-	for _, c := range that.ConnList {
-		c.Close()
-	}
+func (that *Eloop) packTcpConn(nfd int, sock syscall.Sockaddr) {
+	remoteAddr := socket.SockaddrToTCPOrUnixAddr(sock)
+	// if el.engine.opts.TCPKeepAlive > 0 && el.ln.Network == "tcp" {
+	// 	err = socket.SetKeepAlivePeriod(nfd, int(el.engine.opts.TCPKeepAlive/time.Second))
+	// 	logging.Error(err)
+	// }
+	c := conn.NewTCPConn(nfd, that.Poller, sock, that.Listener.Addr(), remoteAddr, that.Handler)
+	loop := that.Balancer.Next(c.AddrLocal)
+	that.Poller.AddPriorTask(loop.RegisterConn, c)
 }
 
-func (that *Eloop) RemoveConn(fd int) {
-	delete(that.ConnList, fd)
-	that.AddConnCount(-1)
+// TODO: udp
+func (that *Eloop) Accept(_ int, _ uint32) error {
+	nfd, sock, err := syscall.Accept4(that.Listener.GetFd(), syscall.SOCK_NONBLOCK|syscall.SOCK_CLOEXEC)
+	switch err {
+	case nil:
+		that.packTcpConn(nfd, sock)
+		return err
+	default:
+		return err
+	case syscall.ENOSYS:
+	case syscall.EINVAL:
+	case syscall.EACCES:
+	case syscall.EFAULT:
+	}
+	nfd, sock, err = syscall.Accept(that.Listener.GetFd())
+	if err == nil {
+		syscall.CloseOnExec(nfd)
+	} else {
+		return err
+	}
+	if err = syscall.SetNonblock(nfd, true); err != nil {
+		syscall.Close(nfd)
+		return err
+	}
+	that.packTcpConn(nfd, sock)
+	return err
 }
 
 func (that *Eloop) ActivateMainLoop(l bool) {
