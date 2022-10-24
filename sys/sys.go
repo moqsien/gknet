@@ -22,3 +22,9 @@ func GkGet() *GkEvent {
 func GkPut(ev *GkEvent) {
 	GkEPool.Put(ev)
 }
+
+type WaitCallback func(fd int, events int64, trigger bool) error
+
+const (
+	InitPollSize = 64
+)

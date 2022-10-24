@@ -68,3 +68,10 @@ func PollWait(pollFd, timeout int, tsp *syscall.Timespec, r *GkEventList) (n int
 	}
 	return
 }
+
+func Wait(w WaitCallback) error {
+	kevs := make([]syscall.Kevent)
+	for {
+
+	}
+}

@@ -3,11 +3,15 @@
 package sys
 
 import (
-	"errors"
+	"os"
+	"runtime"
 	"sync"
 	"syscall"
 
+	"github.com/moqsien/processes/logger"
+
 	"github.com/moqsien/gknet/utils"
+	"github.com/moqsien/gknet/utils/errs"
 )
 
 var ePool = &sync.Pool{New: func() any {
@@ -77,9 +81,43 @@ func UnRegister(pollFd, fd int) (err error) {
 	return epollFdHandler(pollFd, fd, syscall.EPOLL_CTL_DEL, 0)
 }
 
-func PollWait(pollFd, timeout int, eventList any) (n int, err error) {
-	if evList, ok := eventList.([]syscall.EpollEvent); ok {
-		return syscall.EpollWait(pollFd, evList, timeout)
+func Wait(pollFd, pollEvFd int, w WaitCallback) error {
+	events := make([]syscall.EpollEvent, InitPollSize)
+	var (
+		trigger bool
+		timeout int = -1
+	)
+	for {
+		n, err := syscall.EpollWait(pollFd, events, timeout)
+		err = utils.SysError("epoll_wait", err)
+		if n == 0 || (n < 0 && err == syscall.EINTR) {
+			timeout = -1
+			runtime.Gosched()
+			continue
+		} else if err != nil {
+			logger.Errorf("error occurs in epoll: %v", os.NewSyscallError("epoll_wait", err))
+			return err
+		}
+		timeout = 0
+		for i := 0; i < n; i++ {
+			ev := &events[i]
+			fd := int(ev.Fd)
+			if fd == pollEvFd {
+				trigger = true
+			}
+			if i == n-1 {
+				err = w(fd, int64(ev.Events), trigger)
+			} else {
+				err = w(fd, int64(ev.Events), false)
+			}
+			switch err {
+			case nil:
+			case errs.ErrAcceptSocket, errs.ErrEngineShutdown:
+				return err
+			default:
+				logger.Warningf("Error occurs in eventloop: %v", err)
+			}
+		}
+		trigger = false
 	}
-	return 0, errors.New("Illegal eventList!")
 }
