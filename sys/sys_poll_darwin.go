@@ -3,9 +3,13 @@
 package sys
 
 import (
+	"runtime"
 	"syscall"
 
+	"github.com/moqsien/processes/logger"
+
 	"github.com/moqsien/gknet/utils"
+	"github.com/moqsien/gknet/utils/errs"
 )
 
 const (
@@ -56,22 +60,50 @@ func UnRegister(pollFd, fd int) (err error) {
 	return nil
 }
 
-var kevs []syscall.Kevent_t
+func Wait(pollFd, pollEvFd int, w WaitCallback) error {
+	events := make([]syscall.Kevent_t, InitPollSize)
+	var (
+		ts      syscall.Timespec
+		tsp     *syscall.Timespec
+		trigger bool
+	)
 
-func PollWait(pollFd, timeout int, tsp *syscall.Timespec, r *GkEventList) (n int, err error) {
-	n, err = syscall.Kevent(pollFd, nil, kevs, tsp)
-	for i := 0; i < n; i++ {
-		ev := GkGet()
-		ev.Fd = kevs[i].Ident
-		ev.Event = int64(kevs[i].Filter)
-		*r = append(*r, ev)
-	}
-	return
-}
-
-func Wait(w WaitCallback) error {
-	kevs := make([]syscall.Kevent)
 	for {
+		n, err := syscall.Kevent(pollEvFd, nil, events, tsp)
+		if n == 0 || (n < 0 && err == syscall.EINTR) {
+			tsp = nil
+			runtime.Gosched()
+			continue
+		} else if err != nil {
+			logger.Errorf("error occurs in kqueue: %v", utils.SysError("kevent_wait", err))
+			return err
+		}
+		tsp = &ts
 
+		var evFilter int16
+		for i := 0; i < n; i++ {
+			ev := events[i]
+			fd := int(ev.Ident)
+			if fd == pollEvFd {
+				trigger = true
+			}
+			evFilter = ev.Filter
+			if (ev.Flags&syscall.EV_EOF != 0) || (ev.Flags&syscall.EV_ERROR != 0) {
+				evFilter = EVFilterFd
+			}
+			if i != n-1 {
+				err = w(fd, int64(evFilter), false)
+			} else {
+				err = w(fd, int64(evFilter), trigger)
+			}
+			switch err {
+			case nil:
+			case errs.ErrAcceptSocket, errs.ErrEngineShutdown:
+				return err
+			default:
+				logger.Warningf("Error occurs in eventloop: %v", err)
+			}
+		}
+		trigger = false
 	}
 }
