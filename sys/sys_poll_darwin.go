@@ -60,7 +60,7 @@ func UnRegister(pollFd, fd int) (err error) {
 	return nil
 }
 
-func Wait(pollFd, pollEvFd int, w WaitCallback) error {
+func WaitPoll(pollFd, pollEvFd int, w WaitCallback) error {
 	events := make([]syscall.Kevent_t, InitPollSize)
 	var (
 		ts      syscall.Timespec
@@ -106,4 +106,25 @@ func Wait(pollFd, pollEvFd int, w WaitCallback) error {
 		}
 		trigger = false
 	}
+}
+
+func CreatePoll() (pollFd, pollEvFd int, err error) {
+	pollFd, err = syscall.Kqueue()
+	if err != nil {
+		err = utils.SysError("kqueue", err)
+		return
+	}
+
+	_, err = syscall.Kevent(pollFd, []syscall.Kevent_t{{
+		Ident:  0,
+		Filter: syscall.EVFILT_USER,
+		Flags:  syscall.EV_ADD | syscall.EV_CLEAR,
+	}}, nil, nil)
+	if err != nil {
+		syscall.Close(pollFd)
+		err = utils.SysError("kqueue_eventfd", err)
+		return
+	}
+	pollEvFd = 0
+	return
 }
