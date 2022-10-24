@@ -56,7 +56,15 @@ func UnRegister(pollFd, fd int) (err error) {
 	return nil
 }
 
-func PollWait(pollFd, timeout int, eventList any) (n int, err error) {
-	// n, err = syscall.Kevent(pollFd, nil, el.events, tsp)
+var kevs []syscall.Kevent_t
+
+func PollWait(pollFd, timeout int, tsp *syscall.Timespec, r *GkEventList) (n int, err error) {
+	n, err = syscall.Kevent(pollFd, nil, kevs, tsp)
+	for i := 0; i < n; i++ {
+		ev := GkGet()
+		ev.Fd = kevs[i].Ident
+		ev.Event = int64(kevs[i].Filter)
+		*r = append(*r, ev)
+	}
 	return
 }
