@@ -81,11 +81,12 @@ func UnRegister(pollFd, fd int) (err error) {
 	return epollFdHandler(pollFd, fd, syscall.EPOLL_CTL_DEL, 0)
 }
 
-func Wait(pollFd, pollEvFd int, w WaitCallback) error {
+func WaitPoll(pollFd, pollEvFd int, w WaitCallback) error {
 	events := make([]syscall.EpollEvent, InitPollSize)
 	var (
-		trigger bool
-		timeout int = -1
+		trigger      bool
+		timeout      int = -1
+		pollEvBuffer     = []byte{}
 	)
 	for {
 		n, err := syscall.EpollWait(pollFd, events, timeout)
@@ -104,6 +105,7 @@ func Wait(pollFd, pollEvFd int, w WaitCallback) error {
 			fd := int(ev.Fd)
 			if fd == pollEvFd {
 				trigger = true
+				syscall.Read(pollEvFd, pollEvBuffer)
 			}
 			if i == n-1 {
 				err = w(fd, int64(ev.Events), trigger)
@@ -120,4 +122,24 @@ func Wait(pollFd, pollEvFd int, w WaitCallback) error {
 		}
 		trigger = false
 	}
+}
+
+func pEventFd(initval uint, flags int) (fd int, err error) {
+	r0, _, e1 := syscall.Syscall(syscall.SYS_EVENTFD2, uintptr(initval), uintptr(flags), 0)
+	fd, err = int(r0), e1
+	return
+}
+
+func CreatePoll() (pollFd, pollEvFd int, err error) {
+	pollFd, err = syscall.EpollCreate1(syscall.EPOLL_CLOEXEC)
+	if err != nil {
+		err = utils.SysError("epoll_create1", err)
+		return
+	}
+	pollEvFd, err = pEventFd(0, syscall.SOCK_NONBLOCK|syscall.SOCK_CLOEXEC)
+	if err != nil {
+		err = utils.SysError("epoll_eventfd", err)
+		return
+	}
+	return
 }
