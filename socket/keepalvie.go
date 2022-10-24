@@ -2,22 +2,26 @@ package socket
 
 import (
 	"errors"
-	"os"
+	"syscall"
 
-	"golang.org/x/sys/unix"
+	"github.com/moqsien/gknet/sys"
+	"github.com/moqsien/gknet/utils"
 )
 
-// SetKeepAlivePeriod sets whether the operating system should send
-// keep-alive messages on the connection and sets period between TCP keep-alive probes.
-func SetKeepAlivePeriod(fd, secs int) error {
+var syscallName string = "setsockopt"
+
+func SetKeepAlive(fd, secs int) error {
 	if secs <= 0 {
-		return errors.New("invalid time duration")
+		return errors.New("invalid keep-alive time!")
 	}
-	if err := os.NewSyscallError("setsockopt", unix.SetsockoptInt(fd, unix.SOL_SOCKET, unix.SO_KEEPALIVE, 1)); err != nil {
-		return err
+	err := syscall.SetsockoptInt(fd, sys.SOL_SOCKET, sys.SO_KEEPALIVE, 1)
+	if err != nil {
+		return utils.SysError(syscallName, err)
 	}
-	if err := os.NewSyscallError("setsockopt", unix.SetsockoptInt(fd, unix.IPPROTO_TCP, unix.TCP_KEEPINTVL, secs)); err != nil {
-		return err
+	err = syscall.SetsockoptInt(fd, sys.IPPROTO_TCP, sys.TCP_KEEPINTVL, secs)
+	if err != nil {
+		return utils.SysError(syscallName, err)
 	}
-	return os.NewSyscallError("setsockopt", unix.SetsockoptInt(fd, unix.IPPROTO_TCP, unix.TCP_KEEPIDLE, secs))
+	err = syscall.SetsockoptInt(fd, sys.IPPROTO_TCP, sys.TCP_KEEPIDLE, secs)
+	return utils.SysError(syscallName, err)
 }

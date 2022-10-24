@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"os"
 	"reflect"
 	"unsafe"
 )
@@ -18,4 +19,8 @@ func StringToBytes(s string) (b []byte) {
 
 	bh.Data, bh.Len, bh.Cap = sh.Data, sh.Len, sh.Len
 	return b
+}
+
+func SysError(name string, err error) error {
+	return os.NewSyscallError(name, err)
 }
