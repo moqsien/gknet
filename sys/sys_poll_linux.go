@@ -138,7 +138,15 @@ func CreatePoll() (pollFd, pollEvFd int, err error) {
 	}
 	pollEvFd, err = pEventFd(0, syscall.SOCK_NONBLOCK|syscall.SOCK_CLOEXEC)
 	if err != nil {
+		syscall.Close(pollFd)
 		err = utils.SysError("epoll_eventfd", err)
+		return
+	}
+	err = AddRead(pollFd, pollEvFd)
+	if err != nil {
+		syscall.Close(pollFd)
+		syscall.Close(pollEvFd)
+		err = utils.SysError("epoll_eventfd_add", err)
 		return
 	}
 	return
