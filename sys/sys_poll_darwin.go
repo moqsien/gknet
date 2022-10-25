@@ -9,7 +9,6 @@ import (
 	"github.com/moqsien/processes/logger"
 
 	"github.com/moqsien/gknet/utils"
-	"github.com/moqsien/gknet/utils/errs"
 )
 
 const (
@@ -49,19 +48,36 @@ func ModRead(pollFd, fd int) (err error) {
 	return utils.SysError(kSysDel, err)
 }
 
+func ModWrite(pollFd, fd int) (err error) {
+	return ModReadWrite(pollFd, fd)
+}
+
 func ModReadWrite(pollFd, fd int) (err error) {
 	_, err = syscall.Kevent(pollFd, []syscall.Kevent_t{
 		{Ident: uint64(fd), Flags: syscall.EV_ADD, Filter: syscall.EVFILT_WRITE},
 	}, nil, nil)
-	return utils.SysError("kevent add", err)
+	return utils.SysError(kSysAdd, err)
 }
 
 func UnRegister(pollFd, fd int) (err error) {
 	return nil
 }
 
-func WaitPoll(pollFd, pollEvFd int, w WaitCallback) error {
-	events := make([]syscall.Kevent_t, InitPollSize)
+func expand(size int) (newSize int, events []syscall.Kevent_t) {
+	newSize = size << 1
+	events = make([]syscall.Kevent_t, newSize)
+	return
+}
+
+func shrink(size int) (newSize int, events []syscall.Kevent_t) {
+	newSize = size >> 1
+	events = make([]syscall.Kevent_t, newSize)
+	return
+}
+
+func WaitPoll(pollFd, pollEvFd int, w WaitCallback, doCallbackErr DoError) error {
+	size := InitPollSize
+	events := make([]syscall.Kevent_t, size)
 	var (
 		ts      syscall.Timespec
 		tsp     *syscall.Timespec
@@ -92,19 +108,21 @@ func WaitPoll(pollFd, pollEvFd int, w WaitCallback) error {
 				evFilter = EVFilterFd
 			}
 			if i != n-1 {
-				err = w(fd, int64(evFilter), false)
+				trigger, err = w(fd, int64(evFilter), false)
 			} else {
-				err = w(fd, int64(evFilter), trigger)
+				trigger, err = w(fd, int64(evFilter), trigger)
 			}
-			switch err {
-			case nil:
-			case errs.ErrAcceptSocket, errs.ErrEngineShutdown:
+			err = doCallbackErr(err)
+			if err != nil {
 				return err
-			default:
-				logger.Warningf("Error occurs in eventloop: %v", err)
 			}
 		}
-		trigger = false
+
+		if n == size && (size<<1 <= MaxPollSize) {
+			size, events = expand(size)
+		} else if (n < size>>1) && (size>>1 >= MinPollSize) {
+			size, events = shrink(size)
+		}
 	}
 }
 
@@ -125,6 +143,19 @@ func CreatePoll() (pollFd, pollEvFd int, err error) {
 		err = utils.SysError("kqueue_eventfd", err)
 		return
 	}
-	pollEvFd = 0
+	pollEvFd = pollFd
 	return
+}
+
+var noteTrigger = []syscall.Kevent_t{{
+	Ident:  0,
+	Filter: syscall.EVFILT_USER,
+	Fflags: syscall.NOTE_TRIGGER,
+}}
+
+func Trigger(pollFd int) (err error) {
+	if _, err = syscall.Kevent(pollFd, noteTrigger, nil, nil); err == syscall.EAGAIN {
+		err = nil
+	}
+	return utils.SysError("kevent_trigger", err)
 }
