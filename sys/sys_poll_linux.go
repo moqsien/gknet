@@ -32,6 +32,12 @@ const (
 	ReadWriteEvents = ReadEvents | WriteEvents
 )
 
+var eSysName map[int]string = map[int]string{
+	syscall.EPOLL_CTL_ADD: "epoll_ctl_add",
+	syscall.EPOLL_CTL_MOD: "epoll_ctl_mod",
+	syscall.EPOLL_CTL_DEL: "epoll_ctl_del",
+}
+
 func epollFdHandler(pollFd, fd, ctlAction int, evs uint32) (err error) {
 	var event *syscall.EpollEvent
 	if ctlAction != syscall.EPOLL_CTL_DEL {
@@ -40,17 +46,7 @@ func epollFdHandler(pollFd, fd, ctlAction int, evs uint32) (err error) {
 		event.Fd, event.Events = int32(fd), evs
 	}
 	err = syscall.EpollCtl(pollFd, ctlAction, fd, event)
-	var eSysName string
-	switch ctlAction {
-	case syscall.EPOLL_CTL_ADD:
-		eSysName = "epoll_ctl_add"
-	case syscall.EPOLL_CTL_MOD:
-		eSysName = "epoll_ctl_mod"
-	case syscall.EPOLL_CTL_DEL:
-		eSysName = "epoll_ctl_del"
-	default:
-	}
-	return utils.SysError(eSysName, err)
+	return utils.SysError(eSysName[ctlAction], err)
 }
 
 func AddReadWrite(pollFd, fd int) (err error) {

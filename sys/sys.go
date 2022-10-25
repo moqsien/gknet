@@ -37,7 +37,7 @@ func SetKeepAlive(fd int, timeout ...int) (err error) {
 	if err != nil {
 		return utils.SysError("setsockopt", err)
 	}
-	err = syscall.SetsockoptInt(fd, syscall.IPPROTO_TCP, TCP_KEEPALIVE, secs)
+	err = syscall.SetsockoptInt(fd, syscall.IPPROTO_TCP, TCP_KEEPIDLE, secs)
 	runtime.KeepAlive(fd)
 	return utils.SysError("setsockopt", err)
 }
