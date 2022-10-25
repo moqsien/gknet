@@ -122,10 +122,10 @@ func doWaitCallbackErr(err error) error {
 }
 
 func (that *Poller) Close() error {
-	if err := utils.SysError("pollfd_close", sys.Close(that.pollFd)); err != nil {
+	if err := utils.SysError("pollfd_close", sys.CloseFd(that.pollFd)); err != nil {
 		return err
 	}
-	return utils.SysError("pollEvFd_close", sys.Close(that.pollEvFd))
+	return utils.SysError("pollEvFd_close", sys.CloseFd(that.pollEvFd))
 }
 
 func (that *Poller) AddReadWrite(fd IFd) error {

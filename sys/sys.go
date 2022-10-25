@@ -7,6 +7,12 @@ import (
 	"github.com/moqsien/gknet/utils"
 )
 
+type EventHandler interface {
+	WriteToFd() error
+	ReadFromFd() error
+	Close() error
+}
+
 type WaitCallback func(fd int, events int64, trigger bool) (newTrigger bool, err error)
 
 type DoError func(err error) error
@@ -19,7 +25,7 @@ const (
 	DefaultTCPKeepAlive = 15 // Seconds
 )
 
-func Close(fd int) error {
+func CloseFd(fd int) error {
 	return syscall.Close(fd)
 }
 

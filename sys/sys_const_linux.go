@@ -11,3 +11,9 @@ const (
 	IPPROTO_TCP   = syscall.IPPROTO_TCP
 	SO_KEEPALIVE  = syscall.SO_KEEPALIVE
 )
+
+const (
+	ErrEvents = syscall.EPOLLERR | syscall.EPOLLHUP | syscall.EPOLLRDHUP
+	OutEvents = ErrEvents | syscall.EPOLLOUT
+	InEvents  = ErrEvents | syscall.EPOLLIN | syscall.EPOLLPRI
+)

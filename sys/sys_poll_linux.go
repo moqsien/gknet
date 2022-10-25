@@ -200,3 +200,15 @@ func Accept(listenerFd int, timeout ...int) (int, syscall.Sockaddr, error) {
 	SetKeepAlive(nfd, timeout...)
 	return nfd, sock, nil
 }
+
+func HandleEvents(events int64, handler EventHandler) error {
+	if events&OutEvents != 0 {
+		if err := handler.WriteToFd(); err != nil {
+			return err
+		}
+	}
+	if events&InEvents != 0 {
+		return handler.ReadFromFd()
+	}
+	return nil
+}
