@@ -10,6 +10,7 @@ import (
 	"github.com/moqsien/gknet/conn"
 	"github.com/moqsien/gknet/poll"
 	"github.com/moqsien/gknet/socket"
+	"github.com/moqsien/gknet/sys"
 )
 
 type Eloop struct {
@@ -104,8 +105,8 @@ func (that *Eloop) ActivateMainLoop(l bool) {
 		defer runtime.UnlockOSThread()
 	}
 	that.Poller.AddRead(that.Listener)
-	that.Poller.Start(func(fd int, events uint32) error {
-		return that.Accept(fd, events)
+	that.Poller.Start(func(fd int, events int64) error {
+		return that.Accept(fd, uint32(events))
 	})
 }
 
@@ -114,14 +115,14 @@ func (that *Eloop) ActivateSubLoop(l bool) {
 		runtime.LockOSThread()
 		defer runtime.UnlockOSThread()
 	}
-	that.Poller.Start(func(fd int, events uint32) error {
+	that.Poller.Start(func(fd int, events int64) error {
 		if conn, found := that.ConnList[fd]; found {
-			if events&poll.WriteEvents != 0 && !conn.OutBuffer.IsEmpty() {
+			if events&sys.WriteEvents != 0 && !conn.OutBuffer.IsEmpty() {
 				if err := conn.WriteToFd(); err != nil {
 					return err
 				}
 			}
-			if events&poll.ReadEvents != 0 {
+			if events&sys.ReadEvents != 0 {
 				return conn.ReadFromFd()
 			}
 		}

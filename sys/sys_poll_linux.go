@@ -7,11 +7,11 @@ import (
 	"runtime"
 	"sync"
 	"syscall"
+	"unsafe"
 
 	"github.com/moqsien/processes/logger"
 
 	"github.com/moqsien/gknet/utils"
-	"github.com/moqsien/gknet/utils/errs"
 )
 
 var ePool = &sync.Pool{New: func() any {
@@ -81,8 +81,21 @@ func UnRegister(pollFd, fd int) (err error) {
 	return epollFdHandler(pollFd, fd, syscall.EPOLL_CTL_DEL, 0)
 }
 
-func WaitPoll(pollFd, pollEvFd int, w WaitCallback) error {
-	events := make([]syscall.EpollEvent, InitPollSize)
+func expand(size int) (newSize int, events []syscall.EpollEvent) {
+	newSize = size << 1
+	events = make([]syscall.EpollEvent, newSize)
+	return
+}
+
+func shrink(size int) (newSize int, events []syscall.EpollEvent) {
+	newSize = size >> 1
+	events = make([]syscall.EpollEvent, newSize)
+	return
+}
+
+func WaitPoll(pollFd, pollEvFd int, w WaitCallback, doCallbackErr DoError) error {
+	size := InitPollSize
+	events := make([]syscall.EpollEvent, size)
 	var (
 		trigger      bool
 		timeout      int = -1
@@ -108,19 +121,21 @@ func WaitPoll(pollFd, pollEvFd int, w WaitCallback) error {
 				syscall.Read(pollEvFd, pollEvBuffer)
 			}
 			if i == n-1 {
-				err = w(fd, int64(ev.Events), trigger)
+				trigger, err = w(fd, int64(ev.Events), trigger)
 			} else {
-				err = w(fd, int64(ev.Events), false)
+				trigger, err = w(fd, int64(ev.Events), false)
 			}
-			switch err {
-			case nil:
-			case errs.ErrAcceptSocket, errs.ErrEngineShutdown:
+			err = doCallbackErr(err)
+			if err != nil {
 				return err
-			default:
-				logger.Warningf("Error occurs in eventloop: %v", err)
 			}
 		}
-		trigger = false
+
+		if n == size && (size<<1 <= MaxPollSize) {
+			size, events = expand(size)
+		} else if (n < size>>1) && (size>>1 >= MinPollSize) {
+			size, events = shrink(size)
+		}
 	}
 }
 
@@ -150,4 +165,16 @@ func CreatePoll() (pollFd, pollEvFd int, err error) {
 		return
 	}
 	return
+}
+
+var (
+	u uint64 = 1
+	b        = (*(*[8]byte)(unsafe.Pointer(&u)))[:]
+)
+
+func Trigger(pollEvFd int) (err error) {
+	if _, err = syscall.Write(pollEvFd, b); err == syscall.EAGAIN {
+		err = nil
+	}
+	return utils.SysError("pollEvFd_write", err)
 }
