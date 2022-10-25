@@ -73,26 +73,8 @@ func (that *Eloop) packTcpConn(nfd int, sock syscall.Sockaddr) {
 
 // TODO: udp
 func (that *Eloop) Accept(_ int, _ uint32) error {
-	nfd, sock, err := syscall.Accept4(that.Listener.GetFd(), syscall.SOCK_NONBLOCK|syscall.SOCK_CLOEXEC)
-	switch err {
-	case nil:
-		that.packTcpConn(nfd, sock)
-		return err
-	default:
-		return err
-	case syscall.ENOSYS:
-	case syscall.EINVAL:
-	case syscall.EACCES:
-	case syscall.EFAULT:
-	}
-	nfd, sock, err = syscall.Accept(that.Listener.GetFd())
-	if err == nil {
-		syscall.CloseOnExec(nfd)
-	} else {
-		return err
-	}
-	if err = syscall.SetNonblock(nfd, true); err != nil {
-		syscall.Close(nfd)
+	nfd, sock, err := sys.Accept(that.Listener.GetFd())
+	if err != nil {
 		return err
 	}
 	that.packTcpConn(nfd, sock)
@@ -117,14 +99,7 @@ func (that *Eloop) ActivateSubLoop(l bool) {
 	}
 	that.Poller.Start(func(fd int, events int64) error {
 		if conn, found := that.ConnList[fd]; found {
-			if events&sys.WriteEvents != 0 && !conn.OutBuffer.IsEmpty() {
-				if err := conn.WriteToFd(); err != nil {
-					return err
-				}
-			}
-			if events&sys.ReadEvents != 0 {
-				return conn.ReadFromFd()
-			}
+			sys.HandleEvents(events, conn)
 		}
 		return nil
 	})

@@ -10,7 +10,7 @@ import (
 type EventHandler interface {
 	WriteToFd() error
 	ReadFromFd() error
-	Close() error
+	Close(err ...syscall.Errno) error
 }
 
 type WaitCallback func(fd int, events int64, trigger bool) (newTrigger bool, err error)

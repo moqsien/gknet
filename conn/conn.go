@@ -131,7 +131,7 @@ func (that *Conn) GetFd() int {
 	return that.Fd
 }
 
-func (that *Conn) Close() (rerr error) {
+func (that *Conn) Close(err ...syscall.Errno) (rerr error) {
 	if addr := that.AddrLocal; addr != nil && strings.HasPrefix(that.AddrLocal.Network(), "udp") {
 		that.releaseUDP()
 		return

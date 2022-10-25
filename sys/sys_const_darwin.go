@@ -12,3 +12,9 @@ const (
 	IPPROTO_TCP   = syscall.IPPROTO_TCP
 	SO_KEEPALIVE  = syscall.SO_KEEPALIVE
 )
+
+const (
+	EVFilterClosed = -0xd
+	EVFilterWrite  = syscall.EVFILT_WRITE
+	EVFilterRead   = syscall.EVFILT_READ
+)

@@ -105,7 +105,7 @@ func WaitPoll(pollFd, pollEvFd int, w WaitCallback, doCallbackErr DoError) error
 			}
 			evFilter = ev.Filter
 			if (ev.Flags&syscall.EV_EOF != 0) || (ev.Flags&syscall.EV_ERROR != 0) {
-				evFilter = EVFilterFd
+				evFilter = EVFilterClosed
 			}
 			if i != n-1 {
 				trigger, err = w(fd, int64(evFilter), false)
@@ -174,4 +174,16 @@ func Accept(listenerFd int, timeout ...int) (int, syscall.Sockaddr, error) {
 	}
 	SetKeepAlive(nfd, timeout...)
 	return nfd, sa, nil
+}
+
+func HandleEvents(events int64, handler EventHandler) (err error) {
+	switch events {
+	case EVFilterClosed:
+		err = handler.Close(syscall.ECONNRESET)
+	case EVFilterWrite:
+		err = handler.WriteToFd()
+	case EVFilterRead:
+		err = handler.ReadFromFd()
+	}
+	return
 }
