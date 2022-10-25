@@ -160,18 +160,18 @@ func Trigger(pollFd int) (err error) {
 	return utils.SysError("kevent_trigger", err)
 }
 
-func Accept(listenerFd int, timeout ...int) (int, syscall.Sockaddr, string, error) {
+func Accept(listenerFd int, timeout ...int) (int, syscall.Sockaddr, error) {
 	nfd, sa, err := syscall.Accept(listenerFd)
 	if err == nil {
 		syscall.CloseOnExec(nfd)
 	}
 	if err != nil {
-		return -1, nil, "accept", err
+		return -1, nil, err
 	}
 	if err = syscall.SetNonblock(nfd, true); err != nil {
 		syscall.Close(nfd)
-		return -1, nil, "setnonblock", err
+		return -1, nil, err
 	}
 	SetKeepAlive(nfd, timeout...)
-	return nfd, sa, "", nil
+	return nfd, sa, nil
 }

@@ -174,3 +174,29 @@ func Trigger(pollEvFd int) (err error) {
 	}
 	return utils.SysError("pollEvFd_write", err)
 }
+
+func Accept(listenerFd int, timeout ...int) (int, syscall.Sockaddr, error) {
+	nfd, sock, err := syscall.Accept4(listenerFd, syscall.SOCK_NONBLOCK|syscall.SOCK_CLOEXEC)
+	switch err {
+	case nil:
+		return nfd, sock, err
+	default:
+		return -1, nil, err
+	case syscall.ENOSYS:
+	case syscall.EINVAL:
+	case syscall.EACCES:
+	case syscall.EFAULT:
+	}
+	nfd, sock, err = syscall.Accept(listenerFd)
+	if err == nil {
+		syscall.CloseOnExec(nfd)
+	} else {
+		return -1, nil, err
+	}
+	if err = syscall.SetNonblock(nfd, true); err != nil {
+		syscall.Close(nfd)
+		return -1, nil, err
+	}
+	SetKeepAlive(nfd, timeout...)
+	return nfd, sock, nil
+}
