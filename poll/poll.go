@@ -125,7 +125,10 @@ func (that *Poller) Close() error {
 	if err := utils.SysError("pollfd_close", sys.CloseFd(that.pollFd)); err != nil {
 		return err
 	}
-	return utils.SysError("pollEvFd_close", sys.CloseFd(that.pollEvFd))
+	if that.pollFd != that.pollEvFd {
+		return utils.SysError("pollEvFd_close", sys.CloseFd(that.pollEvFd))
+	}
+	return nil
 }
 
 func (that *Poller) AddReadWrite(fd IFd) error {
