@@ -13,7 +13,8 @@ const (
 )
 
 const (
-	ErrEvents = syscall.EPOLLERR | syscall.EPOLLHUP | syscall.EPOLLRDHUP
-	OutEvents = ErrEvents | syscall.EPOLLOUT
-	InEvents  = ErrEvents | syscall.EPOLLIN | syscall.EPOLLPRI
+	ErrEvents      = syscall.EPOLLERR | syscall.EPOLLHUP | syscall.EPOLLRDHUP
+	OutEvents      = ErrEvents | syscall.EPOLLOUT
+	InEvents       = ErrEvents | syscall.EPOLLIN | syscall.EPOLLPRI
+	ClosedFdEvents = 0
 )

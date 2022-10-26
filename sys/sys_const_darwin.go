@@ -18,3 +18,9 @@ const (
 	EVFilterWrite  = syscall.EVFILT_WRITE
 	EVFilterRead   = syscall.EVFILT_READ
 )
+
+const (
+	InEvents       = 0x2
+	OutEvents      = 0x4
+	ClosedFdEvents = 0x8
+)
