@@ -3,7 +3,9 @@
 package sys
 
 import (
+	"errors"
 	"runtime"
+	"sync"
 	"syscall"
 
 	"github.com/moqsien/processes/logger"
@@ -13,54 +15,109 @@ import (
 
 const (
 	kSysAdd = "kevent_add"
+	kSysMod = "kevent_del"
 	kSysDel = "kevent_del"
 )
 
+var kFilters sync.Map = sync.Map{}
+
+func getKevents(oldEvents, newEvents uint32, fd int) (r []syscall.Kevent_t) {
+	if newEvents&InEvents != 0 && oldEvents&InEvents == 0 {
+		r = append(r, syscall.Kevent_t{
+			Ident:  uint64(fd),
+			Flags:  syscall.EV_ADD | syscall.EV_ENABLE,
+			Filter: syscall.EVFILT_READ,
+		})
+	}
+
+	if newEvents&InEvents == 0 && oldEvents&InEvents != 0 {
+		r = append(r, syscall.Kevent_t{
+			Ident:  uint64(fd),
+			Flags:  syscall.EV_DELETE | syscall.EV_ONESHOT,
+			Filter: syscall.EVFILT_READ,
+		})
+	}
+
+	if newEvents&OutEvents != 0 && oldEvents&OutEvents == 0 {
+		r = append(r, syscall.Kevent_t{
+			Ident:  uint64(fd),
+			Flags:  syscall.EV_ADD | syscall.EV_ENABLE,
+			Filter: syscall.EVFILT_WRITE,
+		})
+	}
+
+	if newEvents&OutEvents == 0 && oldEvents&OutEvents != 0 {
+		r = append(r, syscall.Kevent_t{
+			Ident:  uint64(fd),
+			Flags:  syscall.EV_DELETE | syscall.EV_ONESHOT,
+			Filter: syscall.EVFILT_WRITE,
+		})
+	}
+	return
+}
+
 func AddReadWrite(pollFd, fd int) (err error) {
-	_, err = syscall.Kevent(pollFd,
-		[]syscall.Kevent_t{
-			{Ident: uint64(fd), Flags: syscall.EV_ADD, Filter: syscall.EVFILT_READ},
-			{Ident: uint64(fd), Flags: syscall.EV_ADD, Filter: syscall.EVFILT_WRITE},
-		},
-		nil,
-		nil)
+	kFilters.Store(fd, InAndOutEvents)
+	kevents := getKevents(NoneEvents, InAndOutEvents, fd)
+	_, err = syscall.Kevent(pollFd, kevents, nil, nil)
 	return utils.SysError(kSysAdd, err)
 }
 
 func AddRead(pollFd, fd int) (err error) {
-	_, err = syscall.Kevent(pollFd, []syscall.Kevent_t{
-		{Ident: uint64(fd), Flags: syscall.EV_ADD, Filter: syscall.EVFILT_READ},
-	}, nil, nil)
+	kFilters.Store(fd, InEvents)
+	kevents := getKevents(NoneEvents, InEvents, fd)
+	_, err = syscall.Kevent(pollFd, kevents, nil, nil)
 	return utils.SysError(kSysAdd, err)
 }
 
 func AddWrite(pollFd, fd int) (err error) {
-	_, err = syscall.Kevent(pollFd, []syscall.Kevent_t{
-		{Ident: uint64(fd), Flags: syscall.EV_ADD, Filter: syscall.EVFILT_WRITE},
-	}, nil, nil)
+	kFilters.Store(fd, OutEvents)
+	kevents := getKevents(NoneEvents, OutEvents, fd)
+	_, err = syscall.Kevent(pollFd, kevents, nil, nil)
 	return utils.SysError(kSysAdd, err)
 }
 
 func ModRead(pollFd, fd int) (err error) {
-	_, err = syscall.Kevent(pollFd, []syscall.Kevent_t{
-		{Ident: uint64(fd), Flags: syscall.EV_DELETE, Filter: syscall.EVFILT_WRITE},
-	}, nil, nil)
+	oldEvents, ok := kFilters.Load(fd)
+	if !ok {
+		return utils.SysError(kSysMod, errors.New("fd not added!"))
+	}
+	kevents := getKevents(oldEvents.(uint32), InEvents, fd)
+	_, err = syscall.Kevent(pollFd, kevents, nil, nil)
 	return utils.SysError(kSysDel, err)
 }
 
 func ModWrite(pollFd, fd int) (err error) {
-	return ModReadWrite(pollFd, fd)
+	oldEvents, ok := kFilters.Load(fd)
+	if !ok {
+		return utils.SysError(kSysMod, errors.New("fd not added!"))
+	}
+	kevents := getKevents(oldEvents.(uint32), OutEvents, fd)
+	_, err = syscall.Kevent(pollFd, kevents, nil, nil)
+	return utils.SysError(kSysMod, err)
 }
 
 func ModReadWrite(pollFd, fd int) (err error) {
-	_, err = syscall.Kevent(pollFd, []syscall.Kevent_t{
-		{Ident: uint64(fd), Flags: syscall.EV_ADD, Filter: syscall.EVFILT_WRITE},
-	}, nil, nil)
-	return utils.SysError(kSysAdd, err)
+	oldEvents, ok := kFilters.Load(fd)
+	if !ok {
+		return utils.SysError(kSysMod, errors.New("fd not added!"))
+	}
+	kevents := getKevents(oldEvents.(uint32), InAndOutEvents, fd)
+	_, err = syscall.Kevent(pollFd, kevents, nil, nil)
+	return utils.SysError(kSysMod, err)
 }
 
 func UnRegister(pollFd, fd int) (err error) {
-	return nil
+	oldEvents, ok := kFilters.Load(fd)
+	if !ok {
+		return utils.SysError(kSysDel, errors.New("fd not added!"))
+	}
+	kevents := getKevents(oldEvents.(uint32), NoneEvents, fd)
+	_, err = syscall.Kevent(pollFd, kevents, nil, nil)
+	if err == nil {
+		kFilters.Delete(fd)
+	}
+	return utils.SysError(kSysDel, err)
 }
 
 func expand(size int) (newSize int, events []syscall.Kevent_t) {
@@ -75,9 +132,9 @@ func shrink(size int) (newSize int, events []syscall.Kevent_t) {
 	return
 }
 
-func WaitPoll(pollFd, pollEvFd int, w WaitCallback, doCallbackErr DoError) error {
+func WaitPoll(pollFd, _pollEvFd int, w WaitCallback, doCallbackErr DoError) error {
 	size := InitPollSize
-	events := make([]syscall.Kevent_t, size)
+	eventList := make([]syscall.Kevent_t, size)
 	var (
 		ts      syscall.Timespec
 		tsp     *syscall.Timespec
@@ -85,7 +142,7 @@ func WaitPoll(pollFd, pollEvFd int, w WaitCallback, doCallbackErr DoError) error
 	)
 
 	for {
-		n, err := syscall.Kevent(pollEvFd, nil, events, tsp)
+		n, err := syscall.Kevent(pollFd, nil, eventList, tsp)
 		if n == 0 || (n < 0 && err == syscall.EINTR) {
 			tsp = nil
 			runtime.Gosched()
@@ -98,19 +155,26 @@ func WaitPoll(pollFd, pollEvFd int, w WaitCallback, doCallbackErr DoError) error
 
 		var evFilter int16
 		for i := 0; i < n; i++ {
-			ev := events[i]
+			ev := eventList[i]
 			fd := int(ev.Ident)
-			if fd == pollEvFd {
+			if fd == 0 {
 				trigger = true
 			}
 			evFilter = ev.Filter
+			var events uint32
 			if (ev.Flags&syscall.EV_EOF != 0) || (ev.Flags&syscall.EV_ERROR != 0) {
-				evFilter = EVFilterClosed
+				events |= ClosedFdEvents
+			}
+			if evFilter == syscall.EVFILT_WRITE && ev.Flags&syscall.EV_ENABLE != 0 {
+				events |= OutEvents
+			}
+			if evFilter == syscall.EVFILT_READ && ev.Flags&syscall.EV_ENABLE != 0 {
+				events |= InEvents
 			}
 			if i != n-1 {
-				trigger, err = w(fd, int64(evFilter), false)
+				trigger, err = w(fd, events, false)
 			} else {
-				trigger, err = w(fd, int64(evFilter), trigger)
+				trigger, err = w(fd, events, trigger)
 			}
 			err = doCallbackErr(err)
 			if err != nil {
@@ -119,9 +183,9 @@ func WaitPoll(pollFd, pollEvFd int, w WaitCallback, doCallbackErr DoError) error
 		}
 
 		if n == size && (size<<1 <= MaxPollSize) {
-			size, events = expand(size)
+			size, eventList = expand(size)
 		} else if (n < size>>1) && (size>>1 >= MinPollSize) {
-			size, events = shrink(size)
+			size, eventList = shrink(size)
 		}
 	}
 }
@@ -174,16 +238,4 @@ func Accept(listenerFd int, timeout ...int) (int, syscall.Sockaddr, error) {
 	}
 	SetKeepAlive(nfd, timeout...)
 	return nfd, sa, nil
-}
-
-func HandleEvents(events int64, handler EventHandler) (err error) {
-	switch events {
-	case EVFilterClosed:
-		err = handler.Close(syscall.ECONNRESET)
-	case EVFilterWrite:
-		err = handler.WriteToFd()
-	case EVFilterRead:
-		err = handler.ReadFromFd()
-	}
-	return
 }

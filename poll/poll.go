@@ -18,7 +18,7 @@ const (
 	MaxTasks = 256
 )
 
-type PollerCallBack func(fd int, events int64) error
+type PollerCallBack func(fd int, events uint32) error
 
 type Poller struct {
 	pollFd     int             // poll file descriptor
@@ -62,7 +62,7 @@ func (that *Poller) AddPriorTask(f PollTaskFunc, arg PollTaskArg) (err error) {
 }
 
 func (that *Poller) Start(fn PollerCallBack) error {
-	var wcb sys.WaitCallback = func(fd int, events int64, trigger bool) (bool, error) {
+	var wcb sys.WaitCallback = func(fd int, events uint32, trigger bool) (bool, error) {
 		var err error
 		err = fn(fd, events)
 		if err != nil {

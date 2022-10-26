@@ -13,7 +13,7 @@ type EventHandler interface {
 	Close(err ...syscall.Errno) error
 }
 
-type WaitCallback func(fd int, events int64, trigger bool) (newTrigger bool, err error)
+type WaitCallback func(fd int, events uint32, trigger bool) (newTrigger bool, err error)
 
 type DoError func(err error) error
 
@@ -46,4 +46,26 @@ func SetKeepAlive(fd int, timeout ...int) (err error) {
 	err = syscall.SetsockoptInt(fd, syscall.IPPROTO_TCP, TCP_KEEPIDLE, secs)
 	runtime.KeepAlive(fd)
 	return utils.SysError("setsockopt", err)
+}
+
+func HandleEvents(events uint32, handler EventHandler) (err error) {
+	if events&ClosedFdEvents != 0 {
+		err = handler.Close(syscall.ECONNRESET)
+		return
+	}
+
+	if events&OutEvents != 0 {
+		err = handler.WriteToFd()
+		if err != nil {
+			return
+		}
+	}
+
+	if events&InEvents != 0 {
+		err = handler.ReadFromFd()
+		if err != nil {
+			return
+		}
+	}
+	return
 }

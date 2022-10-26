@@ -20,7 +20,9 @@ const (
 )
 
 const (
-	InEvents       = 0x2
-	OutEvents      = 0x4
-	ClosedFdEvents = 0x8
+	InEvents       uint32 = 0x2
+	OutEvents      uint32 = 0x4
+	ClosedFdEvents uint32 = 0x8
+	InAndOutEvents uint32 = InEvents | OutEvents
+	NoneEvents     uint32 = 0
 )

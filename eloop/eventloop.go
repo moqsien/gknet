@@ -87,8 +87,8 @@ func (that *Eloop) ActivateMainLoop(l bool) {
 		defer runtime.UnlockOSThread()
 	}
 	that.Poller.AddRead(that.Listener)
-	that.Poller.Start(func(fd int, events int64) error {
-		return that.Accept(fd, uint32(events))
+	that.Poller.Start(func(fd int, events uint32) error {
+		return that.Accept(fd, events)
 	})
 }
 
@@ -97,7 +97,7 @@ func (that *Eloop) ActivateSubLoop(l bool) {
 		runtime.LockOSThread()
 		defer runtime.UnlockOSThread()
 	}
-	that.Poller.Start(func(fd int, events int64) error {
+	that.Poller.Start(func(fd int, events uint32) error {
 		if conn, found := that.ConnList[fd]; found {
 			sys.HandleEvents(events, conn)
 		}
