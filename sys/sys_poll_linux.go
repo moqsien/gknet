@@ -117,9 +117,9 @@ func WaitPoll(pollFd, pollEvFd int, w WaitCallback, doCallbackErr DoError) error
 				syscall.Read(pollEvFd, pollEvBuffer)
 			}
 			if i == n-1 {
-				trigger, err = w(fd, int64(ev.Events), trigger)
+				trigger, err = w(fd, ev.Events, trigger)
 			} else {
-				trigger, err = w(fd, int64(ev.Events), false)
+				trigger, err = w(fd, ev.Events, false)
 			}
 			err = doCallbackErr(err)
 			if err != nil {
