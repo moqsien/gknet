@@ -18,3 +18,8 @@ const (
 	InEvents       = ErrEvents | syscall.EPOLLIN | syscall.EPOLLPRI
 	ClosedFdEvents = 0
 )
+
+const (
+	EAGAIN = syscall.EAGAIN
+	ECONNRESET = syscall.ECONNRESET
+)

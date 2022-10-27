@@ -27,7 +27,7 @@ const (
 )
 
 func CloseFd(fd int) error {
-	return syscall.Close(fd)
+	return utils.SysError("fd_close", syscall.Close(fd))
 }
 
 func SetKeepAlive(fd int, timeout ...int) (err error) {

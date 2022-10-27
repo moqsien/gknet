@@ -9,14 +9,10 @@ import (
 	"github.com/moqsien/gknet/poll"
 )
 
-type IFile interface {
-	File() (*os.File, error)
-}
-
 type IListener interface {
 	net.Listener
 	poll.IFd
-	IFile
+	File() (*os.File, error)
 	IsUDP() bool
 }
 
@@ -50,7 +46,7 @@ func (that *GkListener) File() (*os.File, error) {
 }
 
 func (that *GkListener) GetFd() int {
-	if that.fd == -1 && that.file != nil {
+	if that.fd < 0 && that.file != nil {
 		that.fd = int(that.file.Fd())
 	}
 	return that.fd

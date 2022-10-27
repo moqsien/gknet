@@ -26,3 +26,8 @@ const (
 	InAndOutEvents uint32 = InEvents | OutEvents
 	NoneEvents     uint32 = 0
 )
+
+const (
+	EAGAIN     = syscall.EAGAIN
+	ECONNRESET = syscall.ECONNRESET
+)
