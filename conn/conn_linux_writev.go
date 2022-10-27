@@ -4,6 +4,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/moqsien/gknet/poll"
+	"github.com/moqsien/gknet/sys"
 	"github.com/moqsien/gknet/utils/errs"
 )
 
@@ -14,14 +15,14 @@ func (that *Conn) _writev(fd int, iov [][]byte) (int, error) {
 	if len(iov) == 0 {
 		return 0, nil
 	}
-	return unix.Writev(fd, iov)
+	return sys.Writev(fd, iov)
 }
 
 func (that *Conn) _readv(fd int, iov [][]byte) (int, error) {
 	if len(iov) == 0 {
 		return 0, nil
 	}
-	return unix.Readv(fd, iov)
+	return sys.Readv(fd, iov)
 }
 
 func (that *Conn) writev(data [][]byte) (n int, err error) {

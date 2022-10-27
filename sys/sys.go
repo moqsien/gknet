@@ -3,6 +3,7 @@ package sys
 import (
 	"runtime"
 	"syscall"
+	"unsafe"
 
 	"github.com/moqsien/gknet/utils"
 )
@@ -68,4 +69,65 @@ func HandleEvents(events uint32, handler EventHandler) (err error) {
 		}
 	}
 	return
+}
+
+var _zero uintptr
+
+func bytes2iovec(bs [][]byte) []syscall.Iovec {
+	iovecs := make([]syscall.Iovec, len(bs))
+	for i, b := range bs {
+		iovecs[i].SetLen(len(b))
+		if len(b) > 0 {
+			iovecs[i].Base = &b[0]
+		} else {
+			iovecs[i].Base = (*byte)(unsafe.Pointer(&_zero))
+		}
+	}
+	return iovecs
+}
+
+func writev(fd int, iovs []syscall.Iovec) (n int, err error) {
+	var _p0 unsafe.Pointer
+	if len(iovs) > 0 {
+		_p0 = unsafe.Pointer(&iovs[0])
+	} else {
+		_p0 = unsafe.Pointer(&_zero)
+	}
+	r0, _, e1 := syscall.Syscall(syscall.SYS_WRITEV, uintptr(fd), uintptr(_p0), uintptr(len(iovs)))
+	n = int(r0)
+	err = e1
+	return
+}
+
+func readv(fd int, iovs []syscall.Iovec) (n int, err error) {
+	var _p0 unsafe.Pointer
+	if len(iovs) > 0 {
+		_p0 = unsafe.Pointer(&iovs[0])
+	} else {
+		_p0 = unsafe.Pointer(&_zero)
+	}
+	r0, _, e1 := syscall.Syscall(syscall.SYS_READV, uintptr(fd), uintptr(_p0), uintptr(len(iovs)))
+	n = int(r0)
+	err = e1
+	return
+}
+
+func Writev(fd int, iovs [][]byte) (n int, err error) {
+	iovecs := bytes2iovec(iovs)
+	n, err = writev(fd, iovecs)
+	return n, err
+}
+
+func Readv(fd int, iovs [][]byte) (n int, err error) {
+	iovecs := bytes2iovec(iovs)
+	n, err = readv(fd, iovecs)
+	return n, err
+}
+
+func Write(fd int, p []byte) (n int, err error) {
+	return syscall.Write(fd, p)
+}
+
+func Read(fd int, p []byte) (n int, err error) {
+	return syscall.Read(fd, p)
 }
