@@ -130,7 +130,7 @@ func (that *Conn) Open() error {
 	var err error
 	data, _ := that.Handler.OnOpen(that)
 	if data != nil {
-		if err = that.open(data); err != nil {
+		if _, err = that.writeOnOpen(data); err != nil {
 			return err
 		}
 	}
@@ -141,28 +141,4 @@ func (that *Conn) Open() error {
 		}
 	}
 	return err
-}
-
-/*
-async apis
-*/
-func (that *Conn) AsyncWrite(data []byte, cb ...AsyncCallback) error {
-	var callback AsyncCallback
-	if len(cb) > 0 {
-		callback = cb[0]
-	}
-
-	if that.IsUDP {
-		defer func() {
-			if callback != nil {
-				cb[0](that)
-			}
-		}()
-		return that.sendTo(data)
-	}
-
-	return that.Poller.AddTask(that.asyncWrite, &AsyncWriteHook{
-		Go:   callback,
-		Data: data,
-	})
 }

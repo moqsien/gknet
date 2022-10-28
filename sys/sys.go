@@ -131,3 +131,7 @@ func Write(fd int, p []byte) (n int, err error) {
 func Read(fd int, p []byte) (n int, err error) {
 	return syscall.Read(fd, p)
 }
+
+func WriteUdp(fd int, p []byte, flags int, to syscall.Sockaddr) (err error) {
+	return syscall.Sendto(fd, p, flags, to)
+}
