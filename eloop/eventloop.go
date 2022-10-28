@@ -23,25 +23,7 @@ type Eloop struct {
 	LastIdleTime time.Time          // Last time that number of connections became zero
 	Cache        bytes.Buffer       // temporary buffer for scattered bytes
 	Balancer     IBalancer          // load balancer
-}
-
-func (that *Eloop) AddConnCount(i int32) {
-	atomic.AddInt32(&that.ConnCount, i)
-}
-
-func (that *Eloop) GetConnCount() int32 {
-	return atomic.LoadInt32(&that.ConnCount)
-}
-
-func (that *Eloop) RemoveConn(fd int) {
-	delete(that.ConnList, fd)
-	that.AddConnCount(-1)
-}
-
-func (that *Eloop) CloseAllConn() {
-	for _, c := range that.ConnList {
-		c.Close()
-	}
+	TcpTimeout   int                // how many seconds does a tcp connection keep alive
 }
 
 func (that *Eloop) RegisterConn(arg poll.PollTaskArg) error {
@@ -62,18 +44,13 @@ func (that *Eloop) RegisterConn(arg poll.PollTaskArg) error {
 
 func (that *Eloop) packTcpConn(nfd int, sock syscall.Sockaddr) {
 	remoteAddr := socket.SockaddrToTCPOrUnixAddr(sock)
-	// if el.engine.opts.TCPKeepAlive > 0 && el.ln.Network == "tcp" {
-	// 	err = socket.SetKeepAlivePeriod(nfd, int(el.engine.opts.TCPKeepAlive/time.Second))
-	// 	logging.Error(err)
-	// }
 	c := conn.NewTCPConn(nfd, that.Poller, sock, that.Listener.Addr(), remoteAddr, that.Handler)
 	loop := that.Balancer.Next(c.AddrLocal)
 	that.Poller.AddPriorTask(loop.RegisterConn, c)
 }
 
-// TODO: udp
 func (that *Eloop) Accept(_ int, _ uint32) error {
-	nfd, sock, err := sys.Accept(that.Listener.GetFd())
+	nfd, sock, err := sys.Accept(that.Listener.GetFd(), that.TcpTimeout)
 	if err != nil {
 		return err
 	}
@@ -103,4 +80,23 @@ func (that *Eloop) ActivateSubLoop(l bool) {
 		}
 		return nil
 	})
+}
+
+func (that *Eloop) AddConnCount(i int32) {
+	atomic.AddInt32(&that.ConnCount, i)
+}
+
+func (that *Eloop) GetConnCount() int32 {
+	return atomic.LoadInt32(&that.ConnCount)
+}
+
+func (that *Eloop) RemoveConn(fd int) {
+	delete(that.ConnList, fd)
+	that.AddConnCount(-1)
+}
+
+func (that *Eloop) CloseAllConn() {
+	for _, c := range that.ConnList {
+		c.Close()
+	}
 }
