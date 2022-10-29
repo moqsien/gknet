@@ -11,7 +11,7 @@ import (
 type EventHandler interface {
 	WriteToFd() error
 	ReadFromFd() error
-	Close(err ...syscall.Errno) error
+	Close() error
 }
 
 type WaitCallback func(fd int, events uint32, trigger bool) (newTrigger bool, err error)
@@ -51,7 +51,7 @@ func SetKeepAlive(fd int, timeout ...int) (err error) {
 
 func HandleEvents(events uint32, handler EventHandler) (err error) {
 	if events&ClosedFdEvents != 0 {
-		err = handler.Close(syscall.ECONNRESET)
+		err = handler.Close()
 		return
 	}
 

@@ -76,7 +76,7 @@ func (that *Conn) GetFd() int {
 	return that.Fd
 }
 
-func (that *Conn) Close(err ...syscall.Errno) (rerr error) {
+func (that *Conn) Close() (rerr error) {
 	if addr := that.AddrLocal; addr != nil && strings.HasPrefix(that.AddrLocal.Network(), "udp") {
 		that.releaseUDP()
 		return
@@ -114,11 +114,7 @@ func (that *Conn) Close(err ...syscall.Errno) (rerr error) {
 		}
 	}
 	that.Poller.Eloop.RemoveConn(that.Fd)
-	var eee error
-	if len(err) > 0 {
-		eee = err[0]
-	}
-	if that.Handler.OnClose(that, eee) != nil {
+	if that.Handler.OnClose(that) != nil {
 		rerr = errs.ErrEngineShutdown
 	}
 	that.releaseTCP()
