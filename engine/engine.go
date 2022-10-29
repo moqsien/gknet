@@ -12,9 +12,11 @@ type Engine struct {
 	Ln        socket.IListener
 	Balancer  eloop.IBalancer
 	MainLoop  *eloop.Eloop
-	Handler   conn.EventHandler
+	Handler   conn.IEventHandler
 	IsClosing int32
 	wg        sync.WaitGroup
 	cond      *sync.Cond
 	once      sync.Once
 }
+
+// TODO: reuseport options

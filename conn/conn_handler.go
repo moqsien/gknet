@@ -15,9 +15,9 @@ func (that *Conn) ReadFromFd() error {
 		}
 		return that.Close()
 	}
-	that.Handler.OnTrack(that)
+	err = that.Handler.OnTrack(that)
 	that.InBuffer.Write(that.Buffer[:n])
-	return nil
+	return err
 }
 
 func (that *Conn) WriteToFd() error {

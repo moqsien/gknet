@@ -27,6 +27,7 @@ type Poller struct {
 	tasks      queue.TaskQueue // tasks
 	toTrigger  int32           // atomic number to trigger tasks
 	Eloop      IELoop          // eventloop
+	Buffer     []byte          // buffer for reading from fd
 }
 
 func New() (p *Poller, err error) {
@@ -76,7 +77,7 @@ func (that *Poller) Start(fn PollerCallBack) error {
 				task := t.(*PollTask)
 				switch err = task.Go(task.Arg); err {
 				case nil:
-				case errs.ErrEngineShutdown:
+				case errs.ErrEngineShutdown, errs.ErrAcceptSocket:
 					return trigger, err
 				default:
 					logger.Warningf("error occurs in user-defined function, %v", err)
@@ -90,7 +91,7 @@ func (that *Poller) Start(fn PollerCallBack) error {
 				task := t.(*PollTask)
 				switch err = task.Go(task.Arg); err {
 				case nil:
-				case errs.ErrEngineShutdown:
+				case errs.ErrEngineShutdown, errs.ErrAcceptSocket:
 					return trigger, err
 				default:
 					logger.Warningf("error occurs in user-defined function, %v", err)

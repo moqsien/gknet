@@ -6,6 +6,7 @@ import (
 	"net"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/moqsien/processes/logger"
 	"github.com/panjf2000/gnet/v2/pkg/buffer/elastic"
@@ -31,11 +32,11 @@ type Conn struct {
 	IsUDP      bool
 	Ctx        interface{}
 	Opened     bool
-	Handler    EventHandler
+	Handler    IEventHandler
 }
 
 // new Conn
-func NewTCPConn(fd int, poller *poll.Poller, sa syscall.Sockaddr, localAddr, remoteAddr net.Addr, h EventHandler) (c *Conn) {
+func NewTCPConn(fd int, poller *poll.Poller, sa syscall.Sockaddr, localAddr, remoteAddr net.Addr, h IEventHandler) (c *Conn) {
 	c = &Conn{
 		Fd:         fd,
 		Sock:       sa,
@@ -137,4 +138,27 @@ func (that *Conn) Open() error {
 		}
 	}
 	return err
+}
+
+/*
+methods for net.Conn interface
+*/
+func (that *Conn) LocalAddr() net.Addr {
+	return that.AddrLocal
+}
+
+func (that *Conn) RemoteAddr() net.Addr {
+	return that.AddrRemote
+}
+
+func (that *Conn) SetDeadline(t time.Time) error {
+	return errs.ErrUnsupportedOp
+}
+
+func (that *Conn) SetReadDeadline(t time.Time) error {
+	return errs.ErrUnsupportedOp
+}
+
+func (that *Conn) SetWriteDeadline(t time.Time) error {
+	return errs.ErrUnsupportedOp
 }

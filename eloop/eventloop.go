@@ -11,6 +11,7 @@ import (
 	"github.com/moqsien/gknet/poll"
 	"github.com/moqsien/gknet/socket"
 	"github.com/moqsien/gknet/sys"
+	"github.com/moqsien/gknet/utils/errs"
 )
 
 type Eloop struct {
@@ -19,7 +20,7 @@ type Eloop struct {
 	Poller       *poll.Poller       // poller
 	ConnCount    int32              // number of connections
 	ConnList     map[int]*conn.Conn // list of connections
-	Handler      conn.EventHandler  // Handler for events
+	Handler      conn.IEventHandler // Handler for events
 	LastIdleTime time.Time          // Last time that number of connections became zero
 	Cache        bytes.Buffer       // temporary buffer for scattered bytes
 	Balancer     IBalancer          // load balancer
@@ -52,13 +53,13 @@ func (that *Eloop) packTcpConn(nfd int, sock syscall.Sockaddr) {
 func (that *Eloop) Accept(_ int, _ uint32) error {
 	nfd, sock, err := sys.Accept(that.Listener.GetFd(), that.TcpTimeout)
 	if err != nil {
-		return err
+		return errs.ErrAcceptSocket
 	}
 	that.packTcpConn(nfd, sock)
 	return err
 }
 
-func (that *Eloop) ActivateMainLoop(l bool) {
+func (that *Eloop) StartAsMainLoop(l bool) {
 	if l {
 		runtime.LockOSThread()
 		defer runtime.UnlockOSThread()
@@ -69,7 +70,7 @@ func (that *Eloop) ActivateMainLoop(l bool) {
 	})
 }
 
-func (that *Eloop) ActivateSubLoop(l bool) {
+func (that *Eloop) StartAsSubLoop(l bool) {
 	if l {
 		runtime.LockOSThread()
 		defer runtime.UnlockOSThread()
