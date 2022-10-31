@@ -35,18 +35,41 @@ type Conn struct {
 	Handler    IEventHandler
 }
 
+type ConnOpts struct {
+	Poller              *poll.Poller
+	SockAddr            syscall.Sockaddr
+	LocalAddr           net.Addr
+	RemoteAddr          net.Addr
+	Handler             IEventHandler
+	WriteBufferCapacity int
+}
+
 // new Conn
-func NewTCPConn(fd int, poller *poll.Poller, sa syscall.Sockaddr, localAddr, remoteAddr net.Addr, h IEventHandler) (c *Conn) {
+func NewTCPConn(fd int) (c *Conn) {
 	c = &Conn{
-		Fd:         fd,
-		Sock:       sa,
-		Poller:     poller,
-		AddrLocal:  localAddr,
-		AddrRemote: remoteAddr,
-		Handler:    h,
+		Fd: fd,
 	}
-	c.OutBuffer, _ = elastic.New(1024)
 	return
+}
+
+func (that *Conn) SetConn(co *ConnOpts) {
+	if co.Poller != nil {
+		that.Poller = co.Poller
+	}
+	if co.SockAddr != nil {
+		that.Sock = co.SockAddr
+	}
+	if co.LocalAddr != nil {
+		that.AddrLocal = co.LocalAddr
+	}
+	if co.RemoteAddr != nil {
+		that.AddrRemote = co.RemoteAddr
+	}
+	wbc := co.WriteBufferCapacity
+	if wbc <= 0 {
+		wbc = 1024
+	}
+	that.OutBuffer, _ = elastic.New(wbc)
 }
 
 /*

@@ -3,6 +3,7 @@ package sys
 import (
 	"runtime"
 	"syscall"
+	"time"
 	"unsafe"
 
 	"github.com/moqsien/gknet/utils"
@@ -30,12 +31,20 @@ func CloseFd(fd int) error {
 	return utils.SysError("fd_close", syscall.Close(fd))
 }
 
-func SetKeepAlive(fd int, timeout ...int) (err error) {
-	// timeout in seconds.
-	secs := DefaultTCPKeepAlive
-	if len(timeout) > 0 && timeout[0] > 0 {
-		secs = timeout[0]
+func transKeepAlive(t ...time.Duration) (secs int) {
+	if len(t) == 0 {
+		return DefaultTCPKeepAlive
 	}
+	secs = int(t[0] / time.Second)
+	if secs >= 1 {
+		return
+	}
+	return DefaultTCPKeepAlive
+}
+
+func SetKeepAlive(fd int, timeout ...time.Duration) (err error) {
+	// timeout in seconds.
+	secs := transKeepAlive(timeout...)
 	err = syscall.SetsockoptInt(fd, syscall.SOL_SOCKET, SO_KEEPALIVE, 1)
 	if err != nil {
 		return utils.SysError("setsockopt", err)
@@ -47,6 +56,14 @@ func SetKeepAlive(fd int, timeout ...int) (err error) {
 	err = syscall.SetsockoptInt(fd, syscall.IPPROTO_TCP, TCP_KEEPIDLE, secs)
 	runtime.KeepAlive(fd)
 	return utils.SysError("setsockopt", err)
+}
+
+func SetReusePort(fd int) error {
+	return utils.SysError("setsockopt", syscall.SetsockoptInt(fd, syscall.SOL_SOCKET, SO_REUSEPORT, 1))
+}
+
+func SetReuseAddr(fd int) error {
+	return utils.SysError("setsockopt", syscall.SetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1))
 }
 
 func HandleEvents(events uint32, handler EventHandler) (err error) {

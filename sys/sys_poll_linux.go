@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"sync"
 	"syscall"
+	"time"
 	"unsafe"
 
 	"github.com/moqsien/processes/logger"
@@ -175,7 +176,7 @@ func Trigger(pollEvFd int) (err error) {
 	return utils.SysError("pollEvFd_write", err)
 }
 
-func Accept(listenerFd int, timeout ...int) (int, syscall.Sockaddr, error) {
+func Accept(listenerFd int, timeout ...time.Duration) (int, syscall.Sockaddr, error) {
 	nfd, sock, err := syscall.Accept4(listenerFd, syscall.SOCK_NONBLOCK|syscall.SOCK_CLOEXEC)
 	switch err {
 	case nil:

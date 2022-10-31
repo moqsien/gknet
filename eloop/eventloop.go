@@ -1,7 +1,6 @@
 package eloop
 
 import (
-	"bytes"
 	"runtime"
 	"sync/atomic"
 	"syscall"
@@ -15,16 +14,14 @@ import (
 )
 
 type Eloop struct {
-	Listener     socket.IListener   // net listener
-	Index        int                // index of worker loop
-	Poller       *poll.Poller       // poller
-	ConnCount    int32              // number of connections
-	ConnList     map[int]*conn.Conn // list of connections
-	Handler      conn.IEventHandler // Handler for events
-	LastIdleTime time.Time          // Last time that number of connections became zero
-	Cache        bytes.Buffer       // temporary buffer for scattered bytes
-	Balancer     IBalancer          // load balancer
-	TcpTimeout   int                // how many seconds does a tcp connection keep alive
+	Listener   socket.IListener   // net listener
+	Index      int                // index of worker loop
+	Poller     *poll.Poller       // poller
+	ConnCount  int32              // number of connections
+	ConnList   map[int]*conn.Conn // list of connections
+	Handler    conn.IEventHandler // Handler for events
+	Balancer   IBalancer          // load balancer
+	TcpTimeout time.Duration      // how many seconds does a tcp connection keep alive
 }
 
 func (that *Eloop) RegisterConn(arg poll.PollTaskArg) error {
@@ -43,11 +40,19 @@ func (that *Eloop) RegisterConn(arg poll.PollTaskArg) error {
 	return err
 }
 
-func (that *Eloop) packTcpConn(nfd int, sock syscall.Sockaddr) {
+func (that *Eloop) packTcpConn(nfd int, sock syscall.Sockaddr) (c *conn.Conn) {
 	remoteAddr := socket.SockaddrToTCPOrUnixAddr(sock)
-	c := conn.NewTCPConn(nfd, that.Poller, sock, that.Listener.Addr(), remoteAddr, that.Handler)
+	c = conn.NewTCPConn(nfd)
+	c.SetConn(&conn.ConnOpts{
+		Poller:     that.Poller,
+		SockAddr:   sock,
+		LocalAddr:  that.Listener.Addr(),
+		RemoteAddr: remoteAddr,
+		Handler:    that.Handler,
+	})
 	loop := that.Balancer.Next(c.AddrLocal)
 	that.Poller.AddPriorTask(loop.RegisterConn, c)
+	return
 }
 
 func (that *Eloop) Accept(_ int, _ uint32) error {
@@ -55,7 +60,8 @@ func (that *Eloop) Accept(_ int, _ uint32) error {
 	if err != nil {
 		return errs.ErrAcceptSocket
 	}
-	that.packTcpConn(nfd, sock)
+	c := that.packTcpConn(nfd, sock)
+	err = that.Handler.OnAccept(c)
 	return err
 }
 

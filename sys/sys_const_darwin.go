@@ -11,6 +11,7 @@ const (
 	SOL_SOCKET    = syscall.SOL_SOCKET
 	IPPROTO_TCP   = syscall.IPPROTO_TCP
 	SO_KEEPALIVE  = syscall.SO_KEEPALIVE
+	SO_REUSEPORT  = 0x200
 )
 
 const (
