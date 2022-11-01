@@ -12,9 +12,6 @@ import (
 )
 
 const (
-	MaxSize  = 1024
-	MinSize  = 32
-	IniSize  = 128
 	MaxTasks = 256
 )
 

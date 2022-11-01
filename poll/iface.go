@@ -1,7 +1,7 @@
 package poll
 
 type IELoop interface {
-	AddConnCount(i int32)
+	AddConnCount(i int32) int32
 	RemoveConn(fd int)
 }
 

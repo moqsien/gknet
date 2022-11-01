@@ -31,7 +31,7 @@ func (that *Eloop) RegisterConn(arg poll.PollTaskArg) error {
 	that.ConnList[c.Fd] = c
 	err = c.Open()
 	if err == nil {
-		that.AddConnCount(1)
+		that.ConnCount = that.AddConnCount(1)
 	}
 	return err
 }
@@ -79,8 +79,8 @@ func (that *Eloop) StartAsSubLoop(l bool) {
 	that.Poller.Start(&EloopEventHandleConn{Eloop: that})
 }
 
-func (that *Eloop) AddConnCount(i int32) {
-	atomic.AddInt32(&that.ConnCount, i)
+func (that *Eloop) AddConnCount(i int32) int32 {
+	return atomic.AddInt32(&that.ConnCount, i)
 }
 
 func (that *Eloop) GetConnCount() int32 {
@@ -89,7 +89,7 @@ func (that *Eloop) GetConnCount() int32 {
 
 func (that *Eloop) RemoveConn(fd int) {
 	delete(that.ConnList, fd)
-	that.AddConnCount(-1)
+	that.ConnCount = that.AddConnCount(-1)
 }
 
 func (that *Eloop) CloseAllConn() {

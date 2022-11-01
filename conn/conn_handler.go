@@ -10,6 +10,7 @@ func (that *Conn) ReadFromFd() error {
 		if err == sys.EAGAIN {
 			return nil
 		}
+		// conn closed by client.
 		if n == 0 {
 			err = sys.ECONNRESET
 		}
