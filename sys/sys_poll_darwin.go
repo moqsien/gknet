@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/moqsien/processes/logger"
 
@@ -224,7 +225,7 @@ func Trigger(pollFd int) (err error) {
 	return utils.SysError("kevent_trigger", err)
 }
 
-func Accept(listenerFd int, timeout ...int) (int, syscall.Sockaddr, error) {
+func Accept(listenerFd int, timeout ...time.Duration) (int, syscall.Sockaddr, error) {
 	nfd, sa, err := syscall.Accept(listenerFd)
 	if err == nil {
 		syscall.CloseOnExec(nfd)
