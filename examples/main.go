@@ -10,7 +10,6 @@ import (
 	"github.com/moqsien/gknet/eloop"
 	"github.com/moqsien/gknet/engine"
 	"github.com/moqsien/gknet/socket"
-	"github.com/moqsien/gknet/sys"
 )
 
 var Fd int
@@ -51,18 +50,16 @@ func run() {
 func client() {
 	time.Sleep(2 * time.Second)
 	conn, _ := net.Dial("tcp", "127.0.0.1:20000")
-	// n, err := conn.Write([]byte("hello-----"))
-	// logger.Println("++write: ", err, ", byte: ", n)
-	// content := make([]byte, 1024)
-	// conn.Read(content)
-	// logger.Println("&&&received: ", string(content))
+	n, err := conn.Write([]byte("hello-----"))
+	logger.Println("++write: ", err, ", byte: ", n)
+	content := make([]byte, 1024)
+	conn.Read(content)
+	logger.Println("&&&received: ", string(content))
 	conn.Close()
-	sys.SocketClosed(Fd)
 	time.Sleep(30 * time.Second)
 	logger.Println("=====================================")
 	// sys.CloseFd(Fd)
 	logger.Println("-------fd in client: ", Fd)
-	sys.SocketClosed(Fd)
 	logger.Println(connection)
 }
 
