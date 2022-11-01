@@ -75,7 +75,7 @@ func SetSendBufferSize(fd, size int) error {
 }
 
 func HandleEvents(events uint32, handler EventHandler) (err error) {
-	if events&ClosedFdEvents != 0 {
+	if events&ClosedFdEvents != 0 { // only for darwin.
 		err = handler.Close()
 		return
 	}
