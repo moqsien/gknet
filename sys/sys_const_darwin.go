@@ -31,4 +31,6 @@ const (
 const (
 	EAGAIN     = syscall.EAGAIN
 	ECONNRESET = syscall.ECONNRESET
+	EINVAL     = syscall.EINVAL
+	ENOENT     = syscall.ENOENT
 )

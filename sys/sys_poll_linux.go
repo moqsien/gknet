@@ -3,7 +3,6 @@
 package sys
 
 import (
-	"os"
 	"runtime"
 	"sync"
 	"syscall"
@@ -100,13 +99,12 @@ func WaitPoll(pollFd, pollEvFd int, w WaitCallback, doCallbackErr DoError) error
 	)
 	for {
 		n, err := syscall.EpollWait(pollFd, events, timeout)
-		err = utils.SysError("epoll_wait", err)
 		if n == 0 || (n < 0 && err == syscall.EINTR) {
 			timeout = -1
 			runtime.Gosched()
 			continue
 		} else if err != nil {
-			logger.Errorf("error occurs in epoll: %v", os.NewSyscallError("epoll_wait", err))
+			logger.Errorf("error occurs in epoll: %v", utils.SysError("epoll_wait", err))
 			return err
 		}
 		timeout = 0
@@ -138,7 +136,7 @@ func WaitPoll(pollFd, pollEvFd int, w WaitCallback, doCallbackErr DoError) error
 
 func pEventFd(initval uint, flags int) (fd int, err error) {
 	r0, _, e1 := syscall.Syscall(syscall.SYS_EVENTFD2, uintptr(initval), uintptr(flags), 0)
-	fd, err = int(r0), e1
+	fd, err = int(r0), errnoErr(e1)
 	return
 }
 

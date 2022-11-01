@@ -1,6 +1,8 @@
 package conn
 
-import "io"
+import (
+	"io"
+)
 
 func (that *Conn) Read(p []byte) (n int, err error) {
 	if that.InBuffer.IsEmpty() {

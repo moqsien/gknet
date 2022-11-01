@@ -18,8 +18,6 @@ const (
 	MaxTasks = 256
 )
 
-type PollerCallBack func(fd int, events uint32) error
-
 type Poller struct {
 	pollFd     int             // poll file descriptor
 	pollEvFd   int             // poll event file descriptor
@@ -28,6 +26,10 @@ type Poller struct {
 	toTrigger  int32           // atomic number to trigger tasks
 	Eloop      IELoop          // eventloop
 	Buffer     []byte          // buffer for reading from fd
+}
+
+func (that *Poller) GetFd() int {
+	return that.pollFd
 }
 
 func New() (p *Poller, err error) {
@@ -62,14 +64,12 @@ func (that *Poller) AddPriorTask(f PollTaskFunc, arg PollTaskArg) (err error) {
 	return
 }
 
-func (that *Poller) Start(fn PollerCallBack) error {
+func (that *Poller) Start(callback PollCallback) error {
 	var wcb sys.WaitCallback = func(fd int, events uint32, trigger bool) (bool, error) {
 		var err error
-		err = fn(fd, events)
-		if err != nil {
-			return false, err
+		if !callback.IsBlocked() {
+			err = callback.Callback(fd, events)
 		}
-
 		if trigger {
 			trigger = false
 			t := that.priorTasks.Dequeue()
@@ -104,6 +104,12 @@ func (that *Poller) Start(fn PollerCallBack) error {
 					trigger = true
 				}
 			}
+		}
+		if callback.IsBlocked() {
+			err = callback.Callback(fd, events)
+		}
+		if err != nil {
+			return false, err
 		}
 		return trigger, err
 	}

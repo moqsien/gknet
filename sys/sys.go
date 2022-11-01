@@ -66,6 +66,14 @@ func SetReuseAddr(fd int) error {
 	return utils.SysError("setsockopt", syscall.SetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1))
 }
 
+func SetRecvBufferSize(fd, size int) error {
+	return utils.SysError("setsockopt", syscall.SetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_RCVBUF, size))
+}
+
+func SetSendBufferSize(fd, size int) error {
+	return utils.SysError("setsockopt", syscall.SetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_SNDBUF, size))
+}
+
 func HandleEvents(events uint32, handler EventHandler) (err error) {
 	if events&ClosedFdEvents != 0 {
 		err = handler.Close()
@@ -112,7 +120,7 @@ func writev(fd int, iovs []syscall.Iovec) (n int, err error) {
 	}
 	r0, _, e1 := syscall.Syscall(syscall.SYS_WRITEV, uintptr(fd), uintptr(_p0), uintptr(len(iovs)))
 	n = int(r0)
-	err = e1
+	err = errnoErr(e1)
 	return
 }
 
@@ -125,7 +133,7 @@ func readv(fd int, iovs []syscall.Iovec) (n int, err error) {
 	}
 	r0, _, e1 := syscall.Syscall(syscall.SYS_READV, uintptr(fd), uintptr(_p0), uintptr(len(iovs)))
 	n = int(r0)
-	err = e1
+	err = errnoErr(e1)
 	return
 }
 

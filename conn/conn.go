@@ -36,12 +36,12 @@ type Conn struct {
 }
 
 type ConnOpts struct {
-	Poller              *poll.Poller
-	SockAddr            syscall.Sockaddr
-	LocalAddr           net.Addr
-	RemoteAddr          net.Addr
-	Handler             IEventHandler
-	WriteBufferCapacity int
+	Poller         *poll.Poller
+	SockAddr       syscall.Sockaddr
+	LocalAddr      net.Addr
+	RemoteAddr     net.Addr
+	Handler        IEventHandler
+	WriteBufferCap int
 }
 
 // new Conn
@@ -65,11 +65,14 @@ func (that *Conn) SetConn(co *ConnOpts) {
 	if co.RemoteAddr != nil {
 		that.AddrRemote = co.RemoteAddr
 	}
-	wbc := co.WriteBufferCapacity
+	wbc := co.WriteBufferCap
 	if wbc <= 0 {
 		wbc = 1024
 	}
 	that.OutBuffer, _ = elastic.New(wbc)
+	if co.Handler != nil {
+		that.Handler = co.Handler
+	}
 }
 
 /*

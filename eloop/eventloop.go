@@ -4,7 +4,6 @@ import (
 	"runtime"
 	"sync/atomic"
 	"syscall"
-	"time"
 
 	"github.com/moqsien/gknet/conn"
 	"github.com/moqsien/gknet/poll"
@@ -14,21 +13,18 @@ import (
 )
 
 type Eloop struct {
-	Listener   socket.IListener   // net listener
-	Index      int                // index of worker loop
-	Poller     *poll.Poller       // poller
-	ConnCount  int32              // number of connections
-	ConnList   map[int]*conn.Conn // list of connections
-	Handler    conn.IEventHandler // Handler for events
-	Balancer   IBalancer          // load balancer
-	TcpTimeout time.Duration      // how many seconds does a tcp connection keep alive
+	Listener  socket.IListener   // net listener
+	Index     int                // index of worker loop
+	Poller    *poll.Poller       // poller
+	Engine    IEngine            // engine
+	ConnCount int32              // number of connections
+	ConnList  map[int]*conn.Conn // list of connections
 }
 
 func (that *Eloop) RegisterConn(arg poll.PollTaskArg) error {
 	c := arg.(*conn.Conn)
-	c.Handler = that.Handler
 	var err error
-	if err = that.Poller.AddRead(c); err != nil {
+	if err = c.Poller.AddRead(c); err != nil {
 		_ = syscall.Close(c.Fd)
 		return err
 	}
@@ -44,24 +40,25 @@ func (that *Eloop) packTcpConn(nfd int, sock syscall.Sockaddr) (c *conn.Conn) {
 	remoteAddr := socket.SockaddrToTCPOrUnixAddr(sock)
 	c = conn.NewTCPConn(nfd)
 	c.SetConn(&conn.ConnOpts{
-		Poller:     that.Poller,
-		SockAddr:   sock,
-		LocalAddr:  that.Listener.Addr(),
-		RemoteAddr: remoteAddr,
-		Handler:    that.Handler,
+		SockAddr:       sock,
+		LocalAddr:      that.Listener.Addr(),
+		RemoteAddr:     remoteAddr,
+		Handler:        that.Engine.GetHandler(),
+		WriteBufferCap: that.Engine.GetOptions().WriteBuffer,
 	})
-	loop := that.Balancer.Next(c.AddrLocal)
+	loop := that.Engine.GetBalancer().Next(c.AddrLocal)
+	c.Poller = loop.Poller
 	that.Poller.AddPriorTask(loop.RegisterConn, c)
 	return
 }
 
 func (that *Eloop) Accept(_ int, _ uint32) error {
-	nfd, sock, err := sys.Accept(that.Listener.GetFd(), that.TcpTimeout)
+	nfd, sock, err := sys.Accept(that.Listener.GetFd(), that.Engine.GetOptions().ConnKeepAlive)
 	if err != nil {
 		return errs.ErrAcceptSocket
 	}
 	c := that.packTcpConn(nfd, sock)
-	err = that.Handler.OnAccept(c)
+	err = that.Engine.GetHandler().OnAccept(c)
 	return err
 }
 
@@ -71,9 +68,7 @@ func (that *Eloop) StartAsMainLoop(l bool) {
 		defer runtime.UnlockOSThread()
 	}
 	that.Poller.AddRead(that.Listener)
-	that.Poller.Start(func(fd int, events uint32) error {
-		return that.Accept(fd, events)
-	})
+	that.Poller.Start(&EloopEventAccept{Eloop: that})
 }
 
 func (that *Eloop) StartAsSubLoop(l bool) {
@@ -81,12 +76,7 @@ func (that *Eloop) StartAsSubLoop(l bool) {
 		runtime.LockOSThread()
 		defer runtime.UnlockOSThread()
 	}
-	that.Poller.Start(func(fd int, events uint32) error {
-		if conn, found := that.ConnList[fd]; found {
-			sys.HandleEvents(events, conn)
-		}
-		return nil
-	})
+	that.Poller.Start(&EloopEventHandleConn{Eloop: that})
 }
 
 func (that *Eloop) AddConnCount(i int32) {

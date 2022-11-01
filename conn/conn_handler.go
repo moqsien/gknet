@@ -5,7 +5,7 @@ import (
 )
 
 func (that *Conn) ReadFromFd() error {
-	n, err := sys.Read(that.Fd, that.Buffer)
+	n, err := sys.Read(that.Fd, that.Poller.Buffer)
 	if err != nil || n == 0 {
 		if err == sys.EAGAIN {
 			return nil
@@ -15,8 +15,9 @@ func (that *Conn) ReadFromFd() error {
 		}
 		return that.Close()
 	}
+	that.Buffer = that.Poller.Buffer[:n]
 	err = that.Handler.OnTrack(that)
-	that.InBuffer.Write(that.Buffer[:n])
+	that.InBuffer.Write(that.Buffer)
 	return err
 }
 
