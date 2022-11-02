@@ -4,11 +4,14 @@ import (
 	"runtime"
 	"sync"
 
+	"github.com/moqsien/processes/logger"
+
 	"github.com/moqsien/gknet/balancer"
 	"github.com/moqsien/gknet/conn"
 	"github.com/moqsien/gknet/eloop"
 	"github.com/moqsien/gknet/poll"
 	"github.com/moqsien/gknet/socket"
+	"github.com/moqsien/gknet/utils/errs"
 )
 
 const (
@@ -16,7 +19,7 @@ const (
 )
 
 type Engine struct {
-	Ln        socket.IListener
+	Listener  socket.IListener
 	Balancer  eloop.IBalancer
 	MainLoop  *eloop.Eloop
 	Handler   conn.IEventHandler
@@ -39,9 +42,12 @@ func Serve(handler conn.IEventHandler, ln socket.IListener, opt *eloop.Options) 
 		opt.WriteBuffer = MaxStreamBufferCap
 	}
 	engine := new(Engine)
-	engine.Ln = ln
+	engine.Listener = ln
 	engine.Handler = handler
 	engine.Options = opt
+	engine.cond = sync.NewCond(&sync.Mutex{})
+	engine.wg = sync.WaitGroup{}
+	engine.once = sync.Once{}
 	switch opt.LoadBalancer {
 	case eloop.RoundRobinLB:
 		engine.Balancer = new(balancer.RoundRobin)
@@ -51,8 +57,7 @@ func Serve(handler conn.IEventHandler, ln socket.IListener, opt *eloop.Options) 
 		engine.Balancer = new(balancer.RoundRobin)
 	}
 	err = engine.start(opt.NumOfLoops)
-	waitchan := make(chan struct{}, 0)
-	<-waitchan
+	defer engine.stop()
 	return
 }
 
@@ -60,15 +65,59 @@ func (that *Engine) start(numOfLoops int) error {
 	return that.startReactors(numOfLoops)
 }
 
-func (that *Engine) stop() error {
-	return nil
+// send stop signal to the engine.
+func (that *Engine) Stop() {
+	that.once.Do(func() {
+		that.cond.L.Lock()
+		that.cond.Signal()
+		that.cond.L.Unlock()
+	})
+}
+
+func (that *Engine) waitForStopSignal() {
+	that.cond.L.Lock()
+	that.cond.Wait()
+	that.cond.L.Unlock()
+}
+
+func (that *Engine) stop() (err error) {
+	// wait until that.Stop() is called.
+	that.waitForStopSignal()
+
+	// close all connections.
+	that.Balancer.Iterator(func(key int, val *eloop.Eloop) bool {
+		err := val.Poller.AddPriorTask(func(_ poll.PollTaskArg) error { return errs.ErrEngineShutdown }, nil)
+		if err != nil {
+			logger.Errorf("failed to call UrgentTrigger on sub event-loop when stopping engine: %v", err)
+		}
+		return true
+	})
+
+	if that.MainLoop != nil {
+		that.Listener.Close()
+		that.MainLoop.Poller.AddPriorTask(func(_ poll.PollTaskArg) error { return errs.ErrEngineShutdown }, nil)
+	}
+
+	// wait for all connections to close.
+	that.wg.Wait()
+
+	// close all pollers.
+	that.Balancer.Iterator(func(key int, val *eloop.Eloop) bool {
+		val.Poller.Close()
+		return true
+	})
+
+	if that.MainLoop != nil {
+		err = that.MainLoop.Poller.Close()
+	}
+	return err
 }
 
 func (that *Engine) startReactors(numOfLoops int) error {
 	for i := 0; i < numOfLoops; i++ {
 		if p, err := poll.New(); err == nil {
 			loop := new(eloop.Eloop)
-			loop.Listener = that.Ln
+			loop.Listener = that.Listener
 			loop.Index = i
 			p.Buffer = make([]byte, that.Options.ReadBuffer)
 			p.Eloop = loop
@@ -86,7 +135,7 @@ func (that *Engine) startReactors(numOfLoops int) error {
 
 	if p, err := poll.New(); err == nil {
 		loop := new(eloop.Eloop)
-		loop.Listener = that.Ln
+		loop.Listener = that.Listener
 		loop.Index = -1
 		p.Eloop = loop
 		loop.Poller = p
