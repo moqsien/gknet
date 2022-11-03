@@ -61,7 +61,7 @@ func (that *Poller) AddPriorTask(f PollTaskFunc, arg PollTaskArg) (err error) {
 	return
 }
 
-func (that *Poller) Start(callback PollCallback) error {
+func (that *Poller) Start(callback IPollCallback) error {
 	var wcb sys.WaitCallback = func(fd int, events uint32, trigger bool) (bool, error) {
 		var err error
 		if !callback.IsBlocked() {

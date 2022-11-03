@@ -12,7 +12,7 @@ type IFd interface {
 	GetFd() int
 }
 
-type PollCallback interface {
+type IPollCallback interface {
 	Callback(fd int, events uint32) error
 	IsBlocked() bool
 }
