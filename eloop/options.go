@@ -3,6 +3,8 @@ package eloop
 import (
 	"crypto/tls"
 	"time"
+
+	"github.com/moqsien/gknet/conn"
 )
 
 const (
@@ -23,4 +25,6 @@ type Options struct {
 	ConnKeepAlive     time.Duration
 	LockOSThread      bool
 	TLSConfig         *tls.Config
+	ConnAdapter       conn.ConnAdapter
+	ConnAsyncCallback conn.AsyncCallback
 }

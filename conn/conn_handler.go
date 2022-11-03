@@ -17,7 +17,7 @@ func (that *Conn) ReadFromFd() error {
 		return that.Close()
 	}
 	that.Buffer = that.Poller.Buffer[:n]
-	err = that.Handler.OnTrack(that)
+	err = that.Handler.OnTrack(that.Ctx)
 	that.InBuffer.Write(that.Buffer)
 	return err
 }

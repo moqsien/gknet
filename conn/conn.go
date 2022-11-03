@@ -141,7 +141,7 @@ func (that *Conn) Close() (rerr error) {
 		}
 	}
 	that.Poller.Eloop.RemoveConn(that.Fd)
-	if that.Handler.OnClose(that) != nil {
+	if that.Handler.OnClose(that.Ctx) != nil {
 		rerr = errs.ErrEngineShutdown
 	}
 	that.releaseTCP()
@@ -151,7 +151,7 @@ func (that *Conn) Close() (rerr error) {
 func (that *Conn) Open() error {
 	that.Opened = true
 	var err error
-	data, _ := that.Handler.OnOpen(that)
+	data, _ := that.Handler.OnOpen(that.Ctx)
 	if data != nil {
 		if _, err = that.writeOnOpen(data); err != nil {
 			return err

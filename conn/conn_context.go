@@ -13,8 +13,8 @@ type Context struct {
 	Conn       net.Conn
 }
 
-func (that *Conn) InitContext(tconf *tls.Config) (err error) {
-	var connection net.Conn = that
+func (that *Conn) InitContext(tconf *tls.Config, adapter ConnAdapter, callback ...AsyncCallback) (err error) {
+	var connection net.Conn = that.Adapt(adapter, callback...)
 	if tconf != nil {
 		tlsConn := tls.Server(connection, tconf)
 		if err = tlsConn.Handshake(); err != nil {
@@ -31,4 +31,12 @@ func (that *Conn) InitContext(tconf *tls.Config) (err error) {
 		Conn:       connection,
 	}
 	return
+}
+
+func (that *Context) Write(data []byte) (int, error) {
+	return that.Conn.Write(data)
+}
+
+func (that *Context) Read(data []byte) (int, error) {
+	return that.Conn.Read(data)
 }

@@ -1,6 +1,7 @@
 package eloop
 
 import (
+	"net"
 	"runtime"
 	"sync/atomic"
 	"syscall"
@@ -13,12 +14,12 @@ import (
 )
 
 type Eloop struct {
-	Listener  socket.IListener   // net listener
-	Index     int                // index of worker loop
-	Poller    *poll.Poller       // poller
-	Engine    IEngine            // engine
-	ConnCount int32              // number of connections
-	ConnList  map[int]*conn.Conn // list of connections
+	Listener  socket.IListener // net listener
+	Index     int              // index of worker loop
+	Poller    *poll.Poller     // poller
+	Engine    IEngine          // engine
+	ConnCount int32            // number of connections
+	ConnList  map[int]net.Conn // list of connections
 }
 
 func (that *Eloop) RegisterConn(arg poll.PollTaskArg) error {
@@ -29,10 +30,9 @@ func (that *Eloop) RegisterConn(arg poll.PollTaskArg) error {
 		return err
 	}
 	// tls handshaking and context preparation.
-	err = c.InitContext(that.Engine.GetOptions().TLSConfig)
-	if err != nil {
-		return err
-	}
+	err = c.InitContext(that.Engine.GetOptions().TLSConfig,
+		that.Engine.GetOptions().ConnAdapter,
+		that.Engine.GetOptions().ConnAsyncCallback)
 	that.ConnList[c.Fd] = c
 	err = c.Open()
 	if err == nil {
@@ -101,4 +101,8 @@ func (that *Eloop) CloseAllConn() {
 	for _, c := range that.ConnList {
 		c.Close()
 	}
+}
+
+func (that *Eloop) GetConnList() map[int]net.Conn {
+	return that.ConnList
 }

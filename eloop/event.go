@@ -3,6 +3,7 @@ package eloop
 import (
 	"errors"
 
+	"github.com/moqsien/gknet/conn"
 	"github.com/moqsien/gknet/sys"
 )
 
@@ -23,8 +24,8 @@ type EloopEventHandleConn struct {
 func (that *EloopEventHandleConn) IsBlocked() bool { return false }
 
 func (that *EloopEventHandleConn) Callback(fd int, events uint32) error {
-	if conn, found := that.Eloop.ConnList[fd]; found {
-		return sys.HandleEvents(events, conn)
+	if connection, found := that.Eloop.ConnList[fd]; found {
+		return sys.HandleEvents(events, connection.(*conn.Conn))
 	}
 	return errors.New("Connection not found!")
 }

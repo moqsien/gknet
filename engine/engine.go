@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"net"
 	"runtime"
 	"sync"
 
@@ -123,7 +124,7 @@ func (that *Engine) startReactors(numOfLoops int) error {
 			p.Eloop = loop
 			loop.Poller = p
 			loop.Engine = that
-			loop.ConnList = make(map[int]*conn.Conn)
+			loop.ConnList = make(map[int]net.Conn)
 			that.Balancer.Register(loop)
 		} else {
 			return err

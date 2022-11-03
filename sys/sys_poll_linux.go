@@ -95,7 +95,7 @@ func WaitPoll(pollFd, pollEvFd int, w WaitCallback, doCallbackErr DoError) error
 	var (
 		trigger      bool
 		timeout      int = -1
-		pollEvBuffer     = []byte{}
+		pollEvBuffer     = make([]byte, 8)
 	)
 	for {
 		n, err := syscall.EpollWait(pollFd, events, timeout)

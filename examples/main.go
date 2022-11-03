@@ -17,12 +17,12 @@ var connection *conn.Conn
 
 type Server struct{}
 
-func (that *Server) OnOpen(c *conn.Conn) (data []byte, err error) {
+func (that *Server) OnOpen(c *conn.Context) (data []byte, err error) {
 	logger.Println("hello onopen")
 	return []byte{}, nil
 }
 
-func (that *Server) OnTrack(c *conn.Conn) error {
+func (that *Server) OnTrack(c *conn.Context) error {
 	logger.Println("!!!!!!!!!!ontrack")
 	_, err := c.Write([]byte("hello gknet"))
 	var content []byte = make([]byte, 30)
@@ -32,13 +32,12 @@ func (that *Server) OnTrack(c *conn.Conn) error {
 }
 
 func (that *Server) OnAccept(c *conn.Conn) error {
-	logger.Println("+++pollerFd: ", c.Poller.GetFd(), ", connFd: ", c.Fd)
 	Fd = c.Fd
 	connection = c
 	return nil
 }
 
-func (that *Server) OnClose(c *conn.Conn) error {
+func (that *Server) OnClose(c *conn.Context) error {
 	return nil
 }
 
