@@ -1,6 +1,9 @@
 package eloop
 
-import "time"
+import (
+	"crypto/tls"
+	"time"
+)
 
 const (
 	RoundRobinLB       int = 0
@@ -19,4 +22,5 @@ type Options struct {
 	ReadBuffer        int
 	ConnKeepAlive     time.Duration
 	LockOSThread      bool
+	TLSConfig         *tls.Config
 }

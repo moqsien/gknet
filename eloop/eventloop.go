@@ -28,6 +28,11 @@ func (that *Eloop) RegisterConn(arg poll.PollTaskArg) error {
 		_ = syscall.Close(c.Fd)
 		return err
 	}
+	// tls handshaking and context preparation.
+	err = c.InitContext(that.Engine.GetOptions().TLSConfig)
+	if err != nil {
+		return err
+	}
 	that.ConnList[c.Fd] = c
 	err = c.Open()
 	if err == nil {

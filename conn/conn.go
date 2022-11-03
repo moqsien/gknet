@@ -30,7 +30,7 @@ type Conn struct {
 	InBuffer   elastic.RingBuffer
 	Buffer     []byte
 	IsUDP      bool
-	Ctx        interface{}
+	Ctx        *Context
 	Opened     bool
 	Handler    IEventHandler
 }
