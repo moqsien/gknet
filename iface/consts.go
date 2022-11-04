@@ -8,8 +8,11 @@ const (
 )
 
 const (
-	RoundRobinLB       int = 0
-	LeastConnLB        int = 1
+	RoundRobinLB Balancer = 0
+	LeastConnLB  Balancer = 1
+)
+
+const (
 	MaxStreamBufferCap int = 64 << 10
 	IovMax             int = 1024
 	MaxTasks           int = 256

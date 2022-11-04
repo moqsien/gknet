@@ -11,6 +11,8 @@ import (
 
 type BalancerIterFunc func(key int, val IELoop) bool
 
+type Balancer int
+
 type ConnAdapter int
 
 type RawConn interface {
@@ -31,7 +33,7 @@ type AsyncWritevHook struct {
 
 type Options struct {
 	NumOfLoops        int
-	LoadBalancer      int
+	LoadBalancer      Balancer
 	ReuseAddr         bool
 	ReusePort         bool
 	SocketWriteBuffer int
