@@ -1,7 +1,7 @@
 package conn
 
 import (
-	"github.com/moqsien/gknet/poll"
+	"github.com/moqsien/gknet/iface"
 	"github.com/moqsien/gknet/sys"
 	"github.com/moqsien/gknet/utils/errs"
 )
@@ -35,12 +35,12 @@ func (that *Conn) writeOnOpen(data []byte) (n int, err error) {
 	return that.write(data)
 }
 
-func (that *Conn) asyncWrite(arg poll.PollTaskArg) (err error) {
+func (that *Conn) asyncWrite(arg iface.PollTaskArg) (err error) {
 	if !that.Opened {
 		return
 	}
 
-	hook, ok := arg.(*AsyncWriteHook)
+	hook, ok := arg.(*iface.AsyncWriteHook)
 	if ok {
 		_, err = that.write(hook.Data)
 		if hook.Go != nil {
@@ -60,8 +60,8 @@ func (that *Conn) Write(p []byte) (int, error) {
 	return that.write(p)
 }
 
-func (that *Conn) AsyncWrite(data []byte, cb ...AsyncCallback) error {
-	var callback AsyncCallback
+func (that *Conn) AsyncWrite(data []byte, cb ...iface.AsyncCallback) error {
+	var callback iface.AsyncCallback
 	if len(cb) > 0 {
 		callback = cb[0]
 	}
@@ -75,7 +75,7 @@ func (that *Conn) AsyncWrite(data []byte, cb ...AsyncCallback) error {
 		return that.writeUdp(data)
 	}
 
-	return that.Poller.AddTask(that.asyncWrite, &AsyncWriteHook{
+	return that.Poller.AddTask(that.asyncWrite, &iface.AsyncWriteHook{
 		Go:   callback,
 		Data: data,
 	})
@@ -118,12 +118,12 @@ func (that *Conn) writev(data [][]byte) (n int, err error) {
 	return
 }
 
-func (that *Conn) asyncWritev(arg poll.PollTaskArg) (err error) {
+func (that *Conn) asyncWritev(arg iface.PollTaskArg) (err error) {
 	if !that.Opened {
 		return nil
 	}
 
-	hook := arg.(*AsyncWritevHook)
+	hook := arg.(*iface.AsyncWritevHook)
 	_, err = that.writev(hook.Data)
 	if hook.Go != nil {
 		err = hook.Go(that)
@@ -138,13 +138,13 @@ func (that *Conn) Writev(bs [][]byte) (int, error) {
 	return that.writev(bs)
 }
 
-func (that *Conn) AsyncWritev(bs [][]byte, cb ...AsyncCallback) error {
-	var callback AsyncCallback
+func (that *Conn) AsyncWritev(bs [][]byte, cb ...iface.AsyncCallback) error {
+	var callback iface.AsyncCallback
 	if len(cb) > 0 {
 		callback = cb[0]
 	}
 	if that.IsUDP {
 		return errs.ErrUnsupportedOp
 	}
-	return that.Poller.AddTask(that.asyncWritev, &AsyncWritevHook{callback, bs})
+	return that.Poller.AddTask(that.asyncWritev, &iface.AsyncWritevHook{Go: callback, Data: bs})
 }

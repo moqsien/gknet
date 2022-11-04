@@ -4,16 +4,11 @@ import (
 	"bufio"
 	"crypto/tls"
 	"net"
+
+	"github.com/moqsien/gknet/iface"
 )
 
-type Context struct {
-	Reader     *bufio.Reader
-	ReadWriter *bufio.ReadWriter
-	RawConn    *Conn
-	Conn       net.Conn
-}
-
-func (that *Conn) InitContext(tconf *tls.Config, adapter ConnAdapter, callback ...AsyncCallback) (err error) {
+func (that *Conn) InitContext(tconf *tls.Config, adapter iface.ConnAdapter, callback ...iface.AsyncCallback) (err error) {
 	var connection net.Conn = that.Adapt(adapter, callback...)
 	if tconf != nil {
 		tlsConn := tls.Server(connection, tconf)
@@ -24,19 +19,11 @@ func (that *Conn) InitContext(tconf *tls.Config, adapter ConnAdapter, callback .
 		connection = tlsConn
 	}
 	reader := bufio.NewReader(connection)
-	that.Ctx = &Context{
+	that.Ctx = &iface.Context{
 		Reader:     reader,
 		ReadWriter: bufio.NewReadWriter(reader, bufio.NewWriter(connection)),
 		RawConn:    that,
 		Conn:       connection,
 	}
 	return
-}
-
-func (that *Context) Write(data []byte) (int, error) {
-	return that.Conn.Write(data)
-}
-
-func (that *Context) Read(data []byte) (int, error) {
-	return that.Conn.Read(data)
 }

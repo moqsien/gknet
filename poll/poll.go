@@ -5,6 +5,7 @@ import (
 
 	"github.com/moqsien/processes/logger"
 
+	"github.com/moqsien/gknet/iface"
 	"github.com/moqsien/gknet/sys"
 	"github.com/moqsien/gknet/utils"
 	"github.com/moqsien/gknet/utils/errs"
@@ -41,7 +42,7 @@ func New() (p *Poller, err error) {
 	return
 }
 
-func (that *Poller) AddTask(f PollTaskFunc, arg PollTaskArg) (err error) {
+func (that *Poller) AddTask(f iface.PollTaskFunc, arg iface.PollTaskArg) (err error) {
 	task := GetTask()
 	task.Go, task.Arg = f, arg
 	that.tasks.Enqueue(task)
@@ -51,7 +52,7 @@ func (that *Poller) AddTask(f PollTaskFunc, arg PollTaskArg) (err error) {
 	return
 }
 
-func (that *Poller) AddPriorTask(f PollTaskFunc, arg PollTaskArg) (err error) {
+func (that *Poller) AddPriorTask(f iface.PollTaskFunc, arg iface.PollTaskArg) (err error) {
 	task := GetTask()
 	task.Go, task.Arg = f, arg
 	that.priorTasks.Enqueue(task)

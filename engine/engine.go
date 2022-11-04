@@ -8,8 +8,8 @@ import (
 	"github.com/moqsien/processes/logger"
 
 	"github.com/moqsien/gknet/balancer"
-	"github.com/moqsien/gknet/conn"
 	"github.com/moqsien/gknet/eloop"
+	"github.com/moqsien/gknet/iface"
 	"github.com/moqsien/gknet/poll"
 	"github.com/moqsien/gknet/socket"
 	"github.com/moqsien/gknet/utils/errs"
@@ -21,18 +21,18 @@ const (
 
 type Engine struct {
 	Listener  socket.IListener
-	Balancer  eloop.IBalancer
+	Balancer  iface.IBalancer
 	MainLoop  *eloop.Eloop
-	Handler   conn.IEventHandler
+	Handler   iface.IEventHandler
 	IsClosing int32
-	Options   *eloop.Options
+	Options   *iface.Options
 	wg        sync.WaitGroup
 	cond      *sync.Cond
 	once      sync.Once
 }
 
 // TODO: reuseport options
-func Serve(handler conn.IEventHandler, ln socket.IListener, opt *eloop.Options) (err error) {
+func Serve(handler iface.IEventHandler, ln socket.IListener, opt *iface.Options) (err error) {
 	if opt.NumOfLoops <= 0 {
 		opt.NumOfLoops = runtime.NumCPU()
 	}
@@ -50,9 +50,9 @@ func Serve(handler conn.IEventHandler, ln socket.IListener, opt *eloop.Options) 
 	engine.wg = sync.WaitGroup{}
 	engine.once = sync.Once{}
 	switch opt.LoadBalancer {
-	case eloop.RoundRobinLB:
+	case iface.RoundRobinLB:
 		engine.Balancer = new(balancer.RoundRobin)
-	case eloop.LeastConnLB:
+	case iface.LeastConnLB:
 		engine.Balancer = new(balancer.LeastConn)
 	default:
 		engine.Balancer = new(balancer.RoundRobin)
@@ -86,8 +86,8 @@ func (that *Engine) stop() (err error) {
 	that.waitForStopSignal()
 
 	// close all connections.
-	that.Balancer.Iterator(func(key int, val *eloop.Eloop) bool {
-		err := val.Poller.AddPriorTask(func(_ poll.PollTaskArg) error { return errs.ErrEngineShutdown }, nil)
+	that.Balancer.Iterator(func(key int, val iface.IELoop) bool {
+		err := val.GetPoller().AddPriorTask(func(_ iface.PollTaskArg) error { return errs.ErrEngineShutdown }, nil)
 		if err != nil {
 			logger.Errorf("failed to call UrgentTrigger on sub event-loop when stopping engine: %v", err)
 		}
@@ -96,15 +96,15 @@ func (that *Engine) stop() (err error) {
 
 	if that.MainLoop != nil {
 		that.Listener.Close()
-		that.MainLoop.Poller.AddPriorTask(func(_ poll.PollTaskArg) error { return errs.ErrEngineShutdown }, nil)
+		that.MainLoop.Poller.AddPriorTask(func(_ iface.PollTaskArg) error { return errs.ErrEngineShutdown }, nil)
 	}
 
 	// wait for all connections to close.
 	that.wg.Wait()
 
 	// close all pollers.
-	that.Balancer.Iterator(func(key int, val *eloop.Eloop) bool {
-		val.Poller.Close()
+	that.Balancer.Iterator(func(key int, val iface.IELoop) bool {
+		val.GetPoller().Close()
 		return true
 	})
 
@@ -159,7 +159,7 @@ func (that *Engine) startReactors(numOfLoops int) error {
 }
 
 func (that *Engine) startSubReactors() {
-	that.Balancer.Iterator(func(i int, loop *eloop.Eloop) bool {
+	that.Balancer.Iterator(func(i int, loop iface.IELoop) bool {
 		that.wg.Add(1)
 		go func() {
 			loop.StartAsSubLoop(that.Options.LockOSThread)
@@ -169,14 +169,14 @@ func (that *Engine) startSubReactors() {
 	})
 }
 
-func (that *Engine) GetOptions() *eloop.Options {
+func (that *Engine) GetOptions() *iface.Options {
 	return that.Options
 }
 
-func (that *Engine) GetBalancer() eloop.IBalancer {
+func (that *Engine) GetBalancer() iface.IBalancer {
 	return that.Balancer
 }
 
-func (that *Engine) GetHandler() conn.IEventHandler {
+func (that *Engine) GetHandler() iface.IEventHandler {
 	return that.Handler
 }

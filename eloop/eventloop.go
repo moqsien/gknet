@@ -7,6 +7,7 @@ import (
 	"syscall"
 
 	"github.com/moqsien/gknet/conn"
+	"github.com/moqsien/gknet/iface"
 	"github.com/moqsien/gknet/poll"
 	"github.com/moqsien/gknet/socket"
 	"github.com/moqsien/gknet/sys"
@@ -17,12 +18,13 @@ type Eloop struct {
 	Listener  socket.IListener // net listener
 	Index     int              // index of worker loop
 	Poller    *poll.Poller     // poller
-	Engine    IEngine          // engine
+	Engine    iface.IEngine    // engine
+	Balancer  iface.IBalancer  // balancer
 	ConnCount int32            // number of connections
 	ConnList  map[int]net.Conn // list of connections
 }
 
-func (that *Eloop) RegisterConn(arg poll.PollTaskArg) error {
+func (that *Eloop) RegisterConn(arg iface.PollTaskArg) error {
 	c := arg.(*conn.Conn)
 	var err error
 	if err = c.Poller.AddRead(c); err != nil {
@@ -41,6 +43,13 @@ func (that *Eloop) RegisterConn(arg poll.PollTaskArg) error {
 	return err
 }
 
+func (that *Eloop) chooseEloop(addrLocal net.Addr) iface.IELoop {
+	if that.Balancer == nil {
+		that.Balancer = that.Engine.GetBalancer()
+	}
+	return that.Balancer.Next(addrLocal)
+}
+
 func (that *Eloop) packTcpConn(nfd int, sock syscall.Sockaddr) (c *conn.Conn) {
 	remoteAddr := socket.SockaddrToTCPOrUnixAddr(sock)
 	c = conn.NewTCPConn(nfd)
@@ -51,7 +60,7 @@ func (that *Eloop) packTcpConn(nfd int, sock syscall.Sockaddr) (c *conn.Conn) {
 		Handler:        that.Engine.GetHandler(),
 		WriteBufferCap: that.Engine.GetOptions().WriteBuffer,
 	})
-	loop := that.Engine.GetBalancer().Next(c.AddrLocal)
+	loop := that.chooseEloop(c.AddrLocal).(*Eloop)
 	c.Poller = loop.Poller
 	that.Poller.AddPriorTask(loop.RegisterConn, c)
 	return
@@ -105,4 +114,8 @@ func (that *Eloop) CloseAllConn() {
 
 func (that *Eloop) GetConnList() map[int]net.Conn {
 	return that.ConnList
+}
+
+func (that *Eloop) GetPoller() iface.IPoller {
+	return that.Poller
 }

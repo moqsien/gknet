@@ -11,6 +11,7 @@ import (
 	"github.com/moqsien/processes/logger"
 	"github.com/panjf2000/gnet/v2/pkg/buffer/elastic"
 
+	"github.com/moqsien/gknet/iface"
 	"github.com/moqsien/gknet/poll"
 	"github.com/moqsien/gknet/sys"
 	"github.com/moqsien/gknet/utils/errs"
@@ -30,9 +31,9 @@ type Conn struct {
 	InBuffer   elastic.RingBuffer
 	Buffer     []byte
 	IsUDP      bool
-	Ctx        *Context
+	Ctx        *iface.Context
 	Opened     bool
-	Handler    IEventHandler
+	Handler    iface.IEventHandler
 }
 
 type ConnOpts struct {
@@ -40,7 +41,7 @@ type ConnOpts struct {
 	SockAddr       syscall.Sockaddr
 	LocalAddr      net.Addr
 	RemoteAddr     net.Addr
-	Handler        IEventHandler
+	Handler        iface.IEventHandler
 	WriteBufferCap int
 }
 

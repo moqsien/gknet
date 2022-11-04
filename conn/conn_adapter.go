@@ -1,10 +1,14 @@
 package conn
 
-import "net"
+import (
+	"net"
+
+	"github.com/moqsien/gknet/iface"
+)
 
 type AsyncWriteConn struct {
 	*Conn
-	CallBack AsyncCallback
+	CallBack iface.AsyncCallback
 }
 
 func (that *AsyncWriteConn) Write(data []byte) (n int, err error) {
@@ -24,37 +28,28 @@ func (that *WritevConn) Write(data []byte) (n int, err error) {
 
 type AsyncWritevConn struct {
 	*Conn
-	CallBack AsyncCallback
+	CallBack iface.AsyncCallback
 }
 
 func (that *AsyncWritevConn) Write(data []byte) (n int, err error) {
 	n = len(data)
 	// TODO: split data.
-	err = that.Conn.AsyncWritev([][]byte{data})
+	err = that.Conn.AsyncWritev([][]byte{data}, that.CallBack)
 	return
 }
 
-type ConnAdapter int
-
-const (
-	ConnAsyncWriteAdapter  ConnAdapter = 0
-	ConnNoneAdapter        ConnAdapter = 1
-	ConnWritevAdapter      ConnAdapter = 2
-	ConnAsyncWritevAdapter ConnAdapter = 3
-)
-
 // Adapt adapts asyncwrite or writev to net.Conn interface.
-func (that *Conn) Adapt(adapter ConnAdapter, callback ...AsyncCallback) net.Conn {
-	var cb AsyncCallback = nil
+func (that *Conn) Adapt(adapter iface.ConnAdapter, callback ...iface.AsyncCallback) net.Conn {
+	var cb iface.AsyncCallback = nil
 	if len(callback) > 0 {
 		cb = callback[0]
 	}
 	switch adapter {
-	case ConnNoneAdapter:
+	case iface.ConnNoneAdapter:
 		return that
-	case ConnAsyncWriteAdapter:
+	case iface.ConnAsyncWriteAdapter:
 		return &AsyncWriteConn{Conn: that, CallBack: cb}
-	case ConnAsyncWritevAdapter:
+	case iface.ConnAsyncWritevAdapter:
 		return &AsyncWritevConn{Conn: that, CallBack: cb}
 	default:
 		return that

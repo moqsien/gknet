@@ -1,14 +1,14 @@
 package poll
 
-import "sync"
+import (
+	"sync"
 
-type PollTaskArg interface{}
-
-type PollTaskFunc func(arg PollTaskArg) error
+	"github.com/moqsien/gknet/iface"
+)
 
 type PollTask struct {
-	Go  PollTaskFunc
-	Arg PollTaskArg
+	Go  iface.PollTaskFunc
+	Arg iface.PollTaskArg
 }
 
 var PollTaskPool = sync.Pool{
