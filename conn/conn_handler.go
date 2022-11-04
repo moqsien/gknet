@@ -1,6 +1,7 @@
 package conn
 
 import (
+	"github.com/moqsien/gknet/iface"
 	"github.com/moqsien/gknet/sys"
 )
 
@@ -29,8 +30,8 @@ func (that *Conn) WriteToFd() error {
 		err error
 	)
 	if len(iov) > 1 {
-		if len(iov) > IovMax {
-			iov = iov[:IovMax]
+		if len(iov) > iface.IovMax {
+			iov = iov[:iface.IovMax]
 		}
 		n, err = sys.Writev(that.Fd, iov)
 	} else {

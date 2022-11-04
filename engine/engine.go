@@ -14,10 +14,6 @@ import (
 	"github.com/moqsien/gknet/utils/errs"
 )
 
-const (
-	MaxStreamBufferCap = 64 << 10
-)
-
 type Engine struct {
 	Listener  iface.IListener
 	Balancer  iface.IBalancer
@@ -36,10 +32,10 @@ func Serve(handler iface.IEventHandler, ln iface.IListener, opt *iface.Options) 
 		opt.NumOfLoops = runtime.NumCPU()
 	}
 	if opt.ReadBuffer <= 0 {
-		opt.ReadBuffer = MaxStreamBufferCap
+		opt.ReadBuffer = iface.MaxStreamBufferCap
 	}
 	if opt.WriteBuffer <= 0 {
-		opt.WriteBuffer = MaxStreamBufferCap
+		opt.WriteBuffer = iface.MaxStreamBufferCap
 	}
 	engine := new(Engine)
 	engine.Listener = ln

@@ -11,4 +11,6 @@ const (
 	RoundRobinLB       int = 0
 	LeastConnLB        int = 1
 	MaxStreamBufferCap int = 64 << 10
+	IovMax             int = 1024
+	MaxTasks           int = 256
 )

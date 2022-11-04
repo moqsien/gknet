@@ -12,10 +12,6 @@ import (
 	"github.com/moqsien/gknet/utils/queue"
 )
 
-const (
-	MaxTasks = 256
-)
-
 type Poller struct {
 	pollFd     int             // poll file descriptor
 	pollEvFd   int             // poll event file descriptor
@@ -82,7 +78,7 @@ func (that *Poller) Start(callback iface.IPollCallback) error {
 				}
 				PutTask(task)
 			}
-			for i := 0; i < MaxTasks; i++ {
+			for i := 0; i < iface.MaxTasks; i++ {
 				if t = that.tasks.Dequeue(); t == nil {
 					break
 				}

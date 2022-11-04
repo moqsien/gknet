@@ -17,10 +17,6 @@ import (
 	"github.com/moqsien/gknet/utils/errs"
 )
 
-const (
-	IovMax = 1024
-)
-
 type Conn struct {
 	Fd         int
 	Poller     *poll.Poller
@@ -117,8 +113,8 @@ func (that *Conn) Close() (rerr error) {
 	if !that.OutBuffer.IsEmpty() {
 		for !that.OutBuffer.IsEmpty() {
 			iov := that.OutBuffer.Peek(0)
-			if len(iov) > IovMax {
-				iov = iov[:IovMax]
+			if len(iov) > iface.IovMax {
+				iov = iov[:iface.IovMax]
 			}
 			if n, e := sys.Writev(that.Fd, iov); e != nil {
 				logger.Warningf("closeConn: error occurs when sending data back to peer, %v", e)
