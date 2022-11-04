@@ -2,6 +2,7 @@ package iface
 
 import (
 	"net"
+	"os"
 )
 
 type IELoop interface {
@@ -46,4 +47,11 @@ type IBalancer interface {
 	Next(addr ...net.Addr) IELoop
 	Iterator(f BalancerIterFunc)
 	Len() int
+}
+
+type IListener interface {
+	net.Listener
+	IFd
+	File() (*os.File, error)
+	IsUDP() bool
 }

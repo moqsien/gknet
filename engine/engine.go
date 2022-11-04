@@ -11,7 +11,6 @@ import (
 	"github.com/moqsien/gknet/eloop"
 	"github.com/moqsien/gknet/iface"
 	"github.com/moqsien/gknet/poll"
-	"github.com/moqsien/gknet/socket"
 	"github.com/moqsien/gknet/utils/errs"
 )
 
@@ -20,7 +19,7 @@ const (
 )
 
 type Engine struct {
-	Listener  socket.IListener
+	Listener  iface.IListener
 	Balancer  iface.IBalancer
 	MainLoop  *eloop.Eloop
 	Handler   iface.IEventHandler
@@ -32,7 +31,7 @@ type Engine struct {
 }
 
 // TODO: reuseport options
-func Serve(handler iface.IEventHandler, ln socket.IListener, opt *iface.Options) (err error) {
+func Serve(handler iface.IEventHandler, ln iface.IListener, opt *iface.Options) (err error) {
 	if opt.NumOfLoops <= 0 {
 		opt.NumOfLoops = runtime.NumCPU()
 	}

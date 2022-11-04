@@ -22,7 +22,7 @@ type Poller struct {
 	priorTasks queue.TaskQueue // tasks with priority
 	tasks      queue.TaskQueue // tasks
 	toTrigger  int32           // atomic number to trigger tasks
-	Eloop      IELoop          // eventloop
+	Eloop      iface.IELoop    // eventloop
 	Buffer     []byte          // buffer for reading from fd
 }
 
@@ -62,7 +62,7 @@ func (that *Poller) AddPriorTask(f iface.PollTaskFunc, arg iface.PollTaskArg) (e
 	return
 }
 
-func (that *Poller) Start(callback IPollCallback) error {
+func (that *Poller) Start(callback iface.IPollCallback) error {
 	var wcb sys.WaitCallback = func(fd int, events uint32, trigger bool) (bool, error) {
 		var err error
 		if !callback.IsBlocked() {
@@ -136,30 +136,30 @@ func (that *Poller) Close() error {
 	return nil
 }
 
-func (that *Poller) AddReadWrite(fd IFd) error {
+func (that *Poller) AddReadWrite(fd iface.IFd) error {
 	return sys.AddReadWrite(that.pollFd, fd.GetFd())
 }
 
-func (that *Poller) AddRead(fd IFd) error {
+func (that *Poller) AddRead(fd iface.IFd) error {
 	return sys.AddRead(that.pollFd, fd.GetFd())
 }
 
-func (that *Poller) AddWrite(fd IFd) error {
+func (that *Poller) AddWrite(fd iface.IFd) error {
 	return sys.AddWrite(that.pollFd, fd.GetFd())
 }
 
-func (that *Poller) ModReadWrite(fd IFd) error {
+func (that *Poller) ModReadWrite(fd iface.IFd) error {
 	return sys.ModReadWrite(that.pollFd, fd.GetFd())
 }
 
-func (that *Poller) ModRead(fd IFd) error {
+func (that *Poller) ModRead(fd iface.IFd) error {
 	return sys.ModRead(that.pollFd, fd.GetFd())
 }
 
-func (that *Poller) ModWrite(fd IFd) error {
+func (that *Poller) ModWrite(fd iface.IFd) error {
 	return sys.ModWrite(that.pollFd, fd.GetFd())
 }
 
-func (that *Poller) RemoveFd(fd IFd) error {
+func (that *Poller) RemoveFd(fd iface.IFd) error {
 	return sys.UnRegister(that.pollFd, fd.GetFd())
 }

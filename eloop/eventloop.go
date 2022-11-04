@@ -15,7 +15,7 @@ import (
 )
 
 type Eloop struct {
-	Listener  socket.IListener // net listener
+	Listener  iface.IListener  // net listener
 	Index     int              // index of worker loop
 	Poller    *poll.Poller     // poller
 	Engine    iface.IEngine    // engine

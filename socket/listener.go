@@ -6,15 +6,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/moqsien/gknet/poll"
+	"github.com/moqsien/gknet/iface"
 )
-
-type IListener interface {
-	net.Listener
-	poll.IFd
-	File() (*os.File, error)
-	IsUDP() bool
-}
 
 type GkListener struct {
 	fd    int
@@ -72,7 +65,7 @@ func ResolveFile(ln interface{}) (file *os.File, err error) {
 	}
 }
 
-func Listen(network, address string) (gl IListener, err error) {
+func Listen(network, address string) (gl iface.IListener, err error) {
 	if strings.Contains(network, "udp") {
 		var addr *net.UDPAddr
 		addr, err = net.ResolveUDPAddr(network, address)
@@ -115,7 +108,7 @@ func Listen(network, address string) (gl IListener, err error) {
 	return
 }
 
-func AdaptListener(l net.Listener) (gl IListener, err error) {
+func AdaptListener(l net.Listener) (gl iface.IListener, err error) {
 	file, err := ResolveFile(l)
 	if err != nil {
 		return nil, err
@@ -128,7 +121,7 @@ func AdaptListener(l net.Listener) (gl IListener, err error) {
 	return
 }
 
-func AdaptUDPConn(c *net.UDPConn) (gl IListener, err error) {
+func AdaptUDPConn(c *net.UDPConn) (gl iface.IListener, err error) {
 	file, err := ResolveFile(c)
 	if err != nil {
 		return nil, err
