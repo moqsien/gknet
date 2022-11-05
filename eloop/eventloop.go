@@ -54,11 +54,14 @@ func (that *Eloop) packTcpConn(nfd int, sock syscall.Sockaddr) (c *conn.Conn) {
 	remoteAddr := socket.SockaddrToTCPOrUnixAddr(sock)
 	c = conn.NewTCPConn(nfd)
 	c.SetConn(&conn.ConnOpts{
-		SockAddr:       sock,
-		LocalAddr:      that.Listener.Addr(),
-		RemoteAddr:     remoteAddr,
-		Handler:        that.Engine.GetHandler(),
-		WriteBufferCap: that.Engine.GetOptions().WriteBuffer,
+		SockAddr:          sock,
+		LocalAddr:         that.Listener.Addr(),
+		RemoteAddr:        remoteAddr,
+		Handler:           that.Engine.GetHandler(),
+		WriteBufferCap:    that.Engine.GetOptions().WriteBuffer,
+		WritevChunkSize:   that.Engine.GetOptions().WritevChunkSize,
+		SocketWriteBuffer: that.Engine.GetOptions().SocketWriteBuffer,
+		SocketReadBuffer:  that.Engine.GetOptions().SocketReadBuffer,
 	})
 	loop := that.chooseEloop(c.AddrLocal).(*Eloop)
 	c.Poller = loop.Poller

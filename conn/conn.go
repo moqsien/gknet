@@ -34,13 +34,15 @@ type Conn struct {
 }
 
 type ConnOpts struct {
-	Poller          *poll.Poller
-	SockAddr        syscall.Sockaddr
-	LocalAddr       net.Addr
-	RemoteAddr      net.Addr
-	Handler         iface.IEventHandler
-	WriteBufferCap  int
-	WritevChunkSize int
+	Poller            *poll.Poller
+	SockAddr          syscall.Sockaddr
+	LocalAddr         net.Addr
+	RemoteAddr        net.Addr
+	Handler           iface.IEventHandler
+	WriteBufferCap    int
+	WritevChunkSize   int
+	SocketWriteBuffer int
+	SocketReadBuffer  int
 }
 
 // new Conn
@@ -76,6 +78,12 @@ func (that *Conn) SetConn(co *ConnOpts) {
 		co.WritevChunkSize = iface.DefaultWritevChunkSize
 	}
 	that.WritevChunkSize = co.WritevChunkSize
+	if co.SocketReadBuffer > 0 {
+		sys.SetRecvBufferSize(that.Fd, co.SocketReadBuffer)
+	}
+	if co.SocketWriteBuffer > 0 {
+		sys.SetSendBufferSize(that.Fd, co.SocketWriteBuffer)
+	}
 }
 
 /*
