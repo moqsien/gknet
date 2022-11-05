@@ -18,27 +18,29 @@ import (
 )
 
 type Conn struct {
-	Fd         int
-	Poller     *poll.Poller
-	Sock       syscall.Sockaddr
-	AddrLocal  net.Addr
-	AddrRemote net.Addr
-	OutBuffer  *elastic.Buffer
-	InBuffer   elastic.RingBuffer
-	Buffer     []byte
-	IsUDP      bool
-	Ctx        *iface.Context
-	Opened     bool
-	Handler    iface.IEventHandler
+	Fd              int
+	Poller          *poll.Poller
+	Sock            syscall.Sockaddr
+	AddrLocal       net.Addr
+	AddrRemote      net.Addr
+	OutBuffer       *elastic.Buffer
+	InBuffer        elastic.RingBuffer
+	Buffer          []byte
+	IsUDP           bool
+	Ctx             *iface.Context
+	Opened          bool
+	Handler         iface.IEventHandler
+	WritevChunkSize int
 }
 
 type ConnOpts struct {
-	Poller         *poll.Poller
-	SockAddr       syscall.Sockaddr
-	LocalAddr      net.Addr
-	RemoteAddr     net.Addr
-	Handler        iface.IEventHandler
-	WriteBufferCap int
+	Poller          *poll.Poller
+	SockAddr        syscall.Sockaddr
+	LocalAddr       net.Addr
+	RemoteAddr      net.Addr
+	Handler         iface.IEventHandler
+	WriteBufferCap  int
+	WritevChunkSize int
 }
 
 // new Conn
@@ -70,6 +72,10 @@ func (that *Conn) SetConn(co *ConnOpts) {
 	if co.Handler != nil {
 		that.Handler = co.Handler
 	}
+	if co.WritevChunkSize == 0 {
+		co.WritevChunkSize = iface.DefaultWritevChunkSize
+	}
+	that.WritevChunkSize = co.WritevChunkSize
 }
 
 /*

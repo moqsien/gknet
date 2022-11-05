@@ -13,7 +13,8 @@ const (
 )
 
 const (
-	MaxStreamBufferCap int = 64 << 10
-	IovMax             int = 1024
-	MaxTasks           int = 256
+	MaxStreamBufferCap     int = 64 << 10
+	IovMax                 int = 1024
+	MaxTasks               int = 256
+	DefaultWritevChunkSize int = 2048
 )

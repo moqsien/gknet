@@ -45,6 +45,7 @@ type Options struct {
 	TLSConfig         *tls.Config
 	ConnAdapter       ConnAdapter
 	ConnAsyncCallback AsyncCallback
+	WritevChunkSize   int
 }
 
 type Context struct {

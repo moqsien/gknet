@@ -4,6 +4,7 @@ import (
 	"net"
 
 	"github.com/moqsien/gknet/iface"
+	"github.com/moqsien/gknet/utils"
 )
 
 type AsyncWriteConn struct {
@@ -22,8 +23,10 @@ type WritevConn struct {
 }
 
 func (that *WritevConn) Write(data []byte) (n int, err error) {
-	// TODO: split data.
-	return that.Conn.Writev([][]byte{data})
+	if len(data) <= iface.DefaultWritevChunkSize {
+		return that.Conn.Write(data)
+	}
+	return that.Conn.Writev(utils.SplitDataForWritev(data, that.WritevChunkSize))
 }
 
 type AsyncWritevConn struct {
@@ -33,8 +36,11 @@ type AsyncWritevConn struct {
 
 func (that *AsyncWritevConn) Write(data []byte) (n int, err error) {
 	n = len(data)
-	// TODO: split data.
-	err = that.Conn.AsyncWritev([][]byte{data}, that.CallBack)
+	if len(data) <= iface.DefaultWritevChunkSize {
+		err = that.Conn.AsyncWrite(data)
+	} else {
+		err = that.Conn.AsyncWritev(utils.SplitDataForWritev(data, that.WritevChunkSize), that.CallBack)
+	}
 	return
 }
 
