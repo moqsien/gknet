@@ -45,3 +45,12 @@ func SplitDataForWritev(data []byte, chunkSize int) (result [][]byte) {
 	}
 	return
 }
+
+func StrSliceContains(ss []string, s string) bool {
+	for _, v := range ss {
+		if v == s {
+			return true
+		}
+	}
+	return false
+}
