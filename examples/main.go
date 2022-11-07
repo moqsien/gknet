@@ -43,7 +43,8 @@ func (that *Server) OnClose(c *iface.Context) error {
 
 func run() {
 	ln, _ := socket.Listen("tcp", "127.0.0.1:20000")
-	engine.Serve(&Server{}, ln, &iface.Options{})
+	eng := engine.New()
+	eng.Serve(&Server{}, ln, &iface.Options{})
 }
 
 func client() {

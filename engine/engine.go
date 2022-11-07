@@ -26,8 +26,12 @@ type Engine struct {
 	once      sync.Once
 }
 
+func New() *Engine {
+	return new(Engine)
+}
+
 // TODO: reuseport options
-func Serve(handler iface.IEventHandler, ln iface.IListener, opt *iface.Options) (err error) {
+func (that *Engine) Serve(handler iface.IEventHandler, ln iface.IListener, opt *iface.Options) (err error) {
 	if opt.NumOfLoops <= 0 {
 		opt.NumOfLoops = runtime.NumCPU()
 	}
@@ -37,23 +41,22 @@ func Serve(handler iface.IEventHandler, ln iface.IListener, opt *iface.Options) 
 	if opt.WriteBuffer <= 0 {
 		opt.WriteBuffer = iface.MaxStreamBufferCap
 	}
-	engine := new(Engine)
-	engine.Listener = ln
-	engine.Handler = handler
-	engine.Options = opt
-	engine.cond = sync.NewCond(&sync.Mutex{})
-	engine.wg = sync.WaitGroup{}
-	engine.once = sync.Once{}
+	that.Listener = ln
+	that.Handler = handler
+	that.Options = opt
+	that.cond = sync.NewCond(&sync.Mutex{})
+	that.wg = sync.WaitGroup{}
+	that.once = sync.Once{}
 	switch opt.LoadBalancer {
 	case iface.RoundRobinLB:
-		engine.Balancer = new(balancer.RoundRobin)
+		that.Balancer = new(balancer.RoundRobin)
 	case iface.LeastConnLB:
-		engine.Balancer = new(balancer.LeastConn)
+		that.Balancer = new(balancer.LeastConn)
 	default:
-		engine.Balancer = new(balancer.RoundRobin)
+		that.Balancer = new(balancer.RoundRobin)
 	}
-	err = engine.start(opt.NumOfLoops)
-	defer engine.stop()
+	err = that.start(opt.NumOfLoops)
+	defer that.stop()
 	return
 }
 
