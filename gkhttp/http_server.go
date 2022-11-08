@@ -80,6 +80,10 @@ func NewHttpServer(handler http.Handler, opts ...*Opts) *Server {
 	return s
 }
 
+func (that *Server) GetListener() iface.IListener {
+	return that.listener
+}
+
 func (that *Server) Close() {
 	that.engine.Stop()
 }
