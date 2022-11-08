@@ -69,12 +69,12 @@ type Server struct {
 	options      *Opts
 }
 
-func New(handler http.Handler, opts ...*Opts) *Server {
+func NewHttpServer(handler http.Handler, opts ...*Opts) *Server {
 	s := new(Server)
 	s.handler = handler
-	s.eventHandler = &GkEventHandler{s}
 	s.engine = engine.New()
-	if len(opts) > 0 {
+	s.eventHandler = &GkEventHandler{s}
+	if len(opts) > 0 && opts[0] != nil {
 		s.options = opts[0]
 	}
 	return s
