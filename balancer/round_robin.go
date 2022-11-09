@@ -1,5 +1,5 @@
 /*
-A balancer defines the how Conns should be dispatched to Eloop.
+A balancer defines how Conns should be dispatched to Eloop.
 */
 package balancer
 

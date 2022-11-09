@@ -11,7 +11,7 @@ Certainly gknet benifts a lot from gnet, but it also brings something new.
 ---------------------------
 - gknet has nearly everything supported by [gnet](https://github.com/panjf2000/gnet).
 - gknet has a builtin http server with TLS support.
-- gknet has gkgin which makes benifts from the famous framework gin. You can easily create your http server using the gin facilities.
+- gknet has gkgin which makes benifts from the famous framework [gin](https://github.com/gin-gonic/gin). You can easily create your http server using the gin facilities.
 - gknet supports both epoll on linux and kqueue on macos (no windows support). You can also easily create your own platform support by referring to the sys package.
 
 ---------------------------
