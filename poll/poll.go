@@ -1,3 +1,6 @@
+/*
+Poller provides an encapsulation of methods provided by package sys which is a generalization of syscalls from different platforms.
+*/
 package poll
 
 import (

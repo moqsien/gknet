@@ -1,3 +1,6 @@
+/*
+Reactor engine.
+*/
 package engine
 
 import (

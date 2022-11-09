@@ -1,3 +1,6 @@
+/*
+conn defines the Conn object which packs system file descriptor and performs reading or writing operations.
+*/
 package conn
 
 import (

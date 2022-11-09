@@ -1,3 +1,6 @@
+/*
+EloopEvent defines the event type for Eloop. An acception or connection monitoring.
+*/
 package eloop
 
 import (

@@ -1,3 +1,6 @@
+/*
+Eloop provides an eventloop implementation to handle acception and connection-monitoring.
+*/
 package eloop
 
 import (

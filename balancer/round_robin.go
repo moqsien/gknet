@@ -1,3 +1,6 @@
+/*
+A balancer defines the how Conns should be dispatched to Eloop.
+*/
 package balancer
 
 import (

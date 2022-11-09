@@ -1,3 +1,6 @@
+/*
+sys just generalized some needed syscalls from different platforms.
+*/
 package sys
 
 import (
