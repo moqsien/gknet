@@ -1,10 +1,11 @@
 package main
 
 import (
-	"github.com/moqsien/gknet/examples/gkgin"
+	"github.com/moqsien/gknet/examples/gkhttps"
 )
 
 func main() {
 	// gktcp.RunTcp()
-	gkgin.RunGkGin()
+	// gkgin.RunGkGin()
+	gkhttps.RunHttp()
 }
