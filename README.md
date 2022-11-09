@@ -1,3 +1,5 @@
+[中文Readme](https://github.com/moqsien/gknet/blob/main/docs/ReadMe_CN.md)
+---------------------------
 ## what's gknet?
 
 ---------------------------
@@ -23,7 +25,7 @@ Certainly gknet benifts a lot from gnet, but it also brings something new.
 
 ---------------------------
 ## license
-[License]()
+[License](https://github.com/moqsien/gknet/blob/main/LICENSE)
 
 ---------------------------
 ## thanks to

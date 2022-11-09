@@ -1,3 +1,6 @@
+[gknet](https://github.com/moqsien/gknet)
+
+---------------------------
 ## 什么是gknet？
 
 ---------------------------
@@ -20,7 +23,7 @@ gknet 是一个基于reactor模式的网络库。gknet的开发受益于gnet项�
 [examples](https://github.com/moqsien/gknet/tree/main/examples)
 
 ## 许可
-[License]()
+[License](https://github.com/moqsien/gknet/blob/main/LICENSE)
 
 ## 感谢
 [panjf2000](https://github.com/panjf2000)
