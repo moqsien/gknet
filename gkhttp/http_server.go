@@ -69,6 +69,10 @@ type Server struct {
 	options      *Opts
 }
 
+var nullOpts = &Opts{
+	Options: &iface.Options{},
+}
+
 func NewHttpServer(handler http.Handler, opts ...*Opts) *Server {
 	s := new(Server)
 	s.handler = handler
@@ -76,6 +80,8 @@ func NewHttpServer(handler http.Handler, opts ...*Opts) *Server {
 	s.eventHandler = &GkEventHandler{s}
 	if len(opts) > 0 && opts[0] != nil {
 		s.options = opts[0]
+	} else {
+		s.options = nullOpts
 	}
 	return s
 }
@@ -105,9 +111,7 @@ func (that *Server) Serve() error {
 		that.Listen(defaultNetwork, defaultAddr)
 	}
 	if that.options == nil {
-		that.options = &Opts{
-			Options: &iface.Options{},
-		}
+		that.options = nullOpts
 	}
 	return that.engine.Serve(that.eventHandler, that.listener, that.options.Options)
 }
