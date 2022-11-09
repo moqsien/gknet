@@ -104,6 +104,11 @@ func (that *Server) Serve() error {
 	if that.listener == nil {
 		that.Listen(defaultNetwork, defaultAddr)
 	}
+	if that.options == nil {
+		that.options = &Opts{
+			Options: &iface.Options{},
+		}
+	}
 	return that.engine.Serve(that.eventHandler, that.listener, that.options.Options)
 }
 
