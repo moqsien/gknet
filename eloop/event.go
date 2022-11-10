@@ -26,7 +26,13 @@ type EloopEventHandleConn struct {
 
 func (that *EloopEventHandleConn) IsBlocked() bool { return false }
 
+var pollEvBufffer = make([]byte, 128)
+
 func (that *EloopEventHandleConn) Callback(fd int, events uint32) error {
+	if fd == that.Eloop.Poller.GetPollEvFd() && fd != 0 {
+		sys.Read(fd, pollEvBufffer)
+		return nil
+	}
 	if connection, found := that.Eloop.ConnList[fd]; found {
 		return sys.HandleEvents(events, connection.(*conn.Conn))
 	}

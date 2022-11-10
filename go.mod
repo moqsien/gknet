@@ -5,6 +5,7 @@ go 1.19
 require (
 	github.com/gin-gonic/gin v1.8.1
 	github.com/moqsien/processes v1.0.3
+	github.com/panjf2000/ants/v2 v2.4.8
 	github.com/panjf2000/gnet/v2 v2.1.2
 )
 

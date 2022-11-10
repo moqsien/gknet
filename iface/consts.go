@@ -17,4 +17,6 @@ const (
 	IovMax                 int = 1024
 	MaxTasks               int = 256
 	DefaultWritevChunkSize int = 2048
+	DefaultGoroutineSize   int = 1024
+	DefaultErrInfoChanSize int = DefaultGoroutineSize
 )

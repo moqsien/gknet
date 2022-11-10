@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/moqsien/processes/logger"
+	"github.com/panjf2000/ants/v2"
 
 	"github.com/moqsien/gknet/balancer"
 	"github.com/moqsien/gknet/eloop"
@@ -24,6 +25,7 @@ type Engine struct {
 	Handler   iface.IEventHandler
 	IsClosing int32
 	Options   *iface.Options
+	Pool      *ants.Pool
 	wg        sync.WaitGroup
 	cond      *sync.Cond
 	once      sync.Once
@@ -44,9 +46,17 @@ func (that *Engine) Serve(handler iface.IEventHandler, ln iface.IListener, opt *
 	if opt.WriteBuffer <= 0 {
 		opt.WriteBuffer = iface.MaxStreamBufferCap
 	}
+	if opt.GoroutineSize <= 0 {
+		opt.GoroutineSize = iface.DefaultGoroutineSize
+	}
 	that.Listener = ln
 	that.Handler = handler
 	that.Options = opt
+	that.Pool, err = ants.NewPool(opt.GoroutineSize)
+	if err != nil {
+		logger.Println(err)
+		return err
+	}
 	that.cond = sync.NewCond(&sync.Mutex{})
 	that.wg = sync.WaitGroup{}
 	that.once = sync.Once{}
@@ -123,6 +133,8 @@ func (that *Engine) startReactors(numOfLoops int) error {
 			loop.Index = i
 			p.Buffer = make([]byte, that.Options.ReadBuffer)
 			p.Eloop = loop
+			p.ErrInfoChan = make(chan error, that.Options.GoroutineSize/2)
+			p.Pool = that.Pool
 			loop.Poller = p
 			loop.Engine = that
 			loop.ConnList = make(map[int]net.Conn)
@@ -140,6 +152,8 @@ func (that *Engine) startReactors(numOfLoops int) error {
 		loop.Listener = that.Listener
 		loop.Index = -1
 		p.Eloop = loop
+		p.ErrInfoChan = make(chan error, that.Options.GoroutineSize/2)
+		p.Pool = that.Pool
 		loop.Poller = p
 		loop.Engine = that
 		if err = loop.Poller.AddRead(loop.Listener); err != nil {

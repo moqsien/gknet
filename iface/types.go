@@ -46,6 +46,7 @@ type Options struct {
 	ConnAdapter       ConnAdapter
 	ConnAsyncCallback AsyncCallback
 	WritevChunkSize   int
+	GoroutineSize     int
 }
 
 type Context struct {

@@ -4,9 +4,11 @@ Poller provides an encapsulation of methods provided by package sys which is a g
 package poll
 
 import (
+	"sync"
 	"sync/atomic"
 
 	"github.com/moqsien/processes/logger"
+	"github.com/panjf2000/ants/v2"
 
 	"github.com/moqsien/gknet/iface"
 	"github.com/moqsien/gknet/sys"
@@ -16,17 +18,24 @@ import (
 )
 
 type Poller struct {
-	pollFd     int             // poll file descriptor
-	pollEvFd   int             // poll event file descriptor
-	priorTasks queue.TaskQueue // tasks with priority
-	tasks      queue.TaskQueue // tasks
-	toTrigger  int32           // atomic number to trigger tasks
-	Eloop      iface.IELoop    // eventloop
-	Buffer     []byte          // buffer for reading from fd
+	pollFd      int             // poll file descriptor
+	pollEvFd    int             // poll event file descriptor
+	priorTasks  queue.TaskQueue // tasks with priority
+	tasks       queue.TaskQueue // tasks
+	toTrigger   int32           // atomic number to trigger tasks
+	Eloop       iface.IELoop    // eventloop
+	Buffer      []byte          // buffer for reading from fd
+	Pool        *ants.Pool      // goroutine pool for running tasks
+	ErrInfoChan chan error      // channel for sending error info
+	wg          *sync.WaitGroup // wait for tasks to complete
 }
 
 func (that *Poller) GetFd() int {
 	return that.pollFd
+}
+
+func (that *Poller) GetPollEvFd() int {
+	return that.pollEvFd
 }
 
 func New() (p *Poller, err error) {
@@ -38,6 +47,7 @@ func New() (p *Poller, err error) {
 	}
 	p.priorTasks = queue.NewQueue()
 	p.tasks = queue.NewQueue()
+	p.wg = &sync.WaitGroup{}
 	return
 }
 
@@ -61,6 +71,34 @@ func (that *Poller) AddPriorTask(f iface.PollTaskFunc, arg iface.PollTaskArg) (e
 	return
 }
 
+func (that *Poller) runTask(task *PollTask) (err error) {
+	if that.Pool == nil {
+		switch err = task.Go(task.Arg); err {
+		case nil:
+		case errs.ErrEngineShutdown, errs.ErrAcceptSocket:
+			that.wg.Done()
+			return err
+		default:
+			logger.Warningf("error occurs in user-defined function, %v", err)
+			that.wg.Done()
+			return nil
+		}
+	} else {
+		that.Pool.Submit(func() {
+			switch errInfo := task.Go(task.Arg); errInfo {
+			case nil:
+			case errs.ErrEngineShutdown, errs.ErrAcceptSocket:
+				that.ErrInfoChan <- errInfo
+			default:
+				logger.Warningf("error occurs in user-defined function, %v", err)
+			}
+			PutTask(task)
+		})
+	}
+	that.wg.Done()
+	return
+}
+
 func (that *Poller) Start(callback iface.IPollCallback) error {
 	var wcb sys.WaitCallback = func(fd int, events uint32, trigger bool) (bool, error) {
 		var err error
@@ -72,29 +110,37 @@ func (that *Poller) Start(callback iface.IPollCallback) error {
 			t := that.priorTasks.Dequeue()
 			for ; t != nil; t = that.priorTasks.Dequeue() {
 				task := t.(*PollTask)
-				switch err = task.Go(task.Arg); err {
-				case nil:
-				case errs.ErrEngineShutdown, errs.ErrAcceptSocket:
-					return trigger, err
-				default:
-					logger.Warningf("error occurs in user-defined function, %v", err)
-				}
-				PutTask(task)
+				that.wg.Add(1)
+				that.runTask(task)
 			}
+
+			that.wg.Wait()
+
+			select {
+			case err = <-that.ErrInfoChan:
+				return trigger, err
+			default:
+				break
+			}
+
 			for i := 0; i < iface.MaxTasks; i++ {
 				if t = that.tasks.Dequeue(); t == nil {
 					break
 				}
 				task := t.(*PollTask)
-				switch err = task.Go(task.Arg); err {
-				case nil:
-				case errs.ErrEngineShutdown, errs.ErrAcceptSocket:
-					return trigger, err
-				default:
-					logger.Warningf("error occurs in user-defined function, %v", err)
-				}
-				PutTask(task)
+				that.wg.Add(1)
+				that.runTask(task)
 			}
+
+			that.wg.Wait()
+
+			select {
+			case err = <-that.ErrInfoChan:
+				return trigger, err
+			default:
+				break
+			}
+
 			atomic.StoreInt32(&that.toTrigger, 0)
 			if (!that.tasks.IsEmpty() || !that.priorTasks.IsEmpty()) && atomic.CompareAndSwapInt32(&that.toTrigger, 0, 1) {
 				if err := sys.Trigger(that.pollEvFd); err == nil {
