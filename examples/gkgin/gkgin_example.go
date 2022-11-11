@@ -24,11 +24,19 @@ func runClient() {
 		logger.Println("gkgin client errored: ", err)
 		return
 	}
-
 	content := make([]byte, 1024)
 	resp.Body.Read(content)
 	logger.Println("[gkgin client] received content: ", string(content))
-	time.Sleep(20 * time.Second)
+	resp.Body.Close()
+
+	time.Sleep(5 * time.Second)
+	resp, err = http.Get("http://localhost:8082/?a=123")
+	if err != nil {
+		logger.Println("gkgin client errored: ", err)
+		return
+	}
+	resp.Body.Read(content)
+	logger.Println("[gkgin client] received content: ", string(content))
 	resp.Body.Close()
 }
 

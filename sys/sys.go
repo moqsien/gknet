@@ -157,6 +157,9 @@ func Write(fd int, p []byte) (n int, err error) {
 }
 
 func Read(fd int, p []byte) (n int, err error) {
+	if fd == 0 {
+		return 0, nil
+	}
 	return syscall.Read(fd, p)
 }
 
