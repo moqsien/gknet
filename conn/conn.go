@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -34,6 +35,7 @@ type Conn struct {
 	Opened          bool
 	Handler         iface.IEventHandler
 	WritevChunkSize int
+	lock            *sync.Mutex
 }
 
 type ConnOpts struct {
@@ -51,7 +53,8 @@ type ConnOpts struct {
 // new Conn
 func NewTCPConn(fd int) (c *Conn) {
 	c = &Conn{
-		Fd: fd,
+		Fd:   fd,
+		lock: &sync.Mutex{},
 	}
 	return
 }

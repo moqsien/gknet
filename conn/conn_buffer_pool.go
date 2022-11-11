@@ -6,7 +6,7 @@ var readBufferPool = sync.Pool{}
 
 func (that *Conn) GetBufferFromPool() []byte {
 	if readBufferPool.New == nil {
-		readBufferPool.New = func() any {
+		readBufferPool.New = func() interface{} {
 			return make([]byte, that.Poller.ReadBufferSize)
 		}
 	}

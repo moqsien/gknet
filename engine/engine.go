@@ -122,6 +122,7 @@ func (that *Engine) stop() (err error) {
 	if that.MainLoop != nil {
 		err = that.MainLoop.Poller.Close()
 	}
+	that.Pool.Release()
 	return err
 }
 
