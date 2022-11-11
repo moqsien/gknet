@@ -22,6 +22,9 @@ gknet 是一个基于reactor模式的网络库。gknet的开发受益于gnet项�
 
 ## gknet 使用示例
 ---------------------------
+```bash
+go get -u github.com/moqsien/gknet@latest
+```
 [examples](https://github.com/moqsien/gknet/tree/main/examples)
 
 ## 许可
