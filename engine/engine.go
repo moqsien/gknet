@@ -131,7 +131,7 @@ func (that *Engine) startReactors(numOfLoops int) error {
 			loop := new(eloop.Eloop)
 			loop.Listener = that.Listener
 			loop.Index = i
-			p.Buffer = make([]byte, that.Options.ReadBuffer)
+			p.ReadBufferSize = that.Options.ReadBuffer
 			p.Eloop = loop
 			p.ErrInfoChan = make(chan error, that.Options.GoroutineSize/2)
 			p.Pool = that.Pool
@@ -151,6 +151,7 @@ func (that *Engine) startReactors(numOfLoops int) error {
 		loop := new(eloop.Eloop)
 		loop.Listener = that.Listener
 		loop.Index = -1
+		p.ReadBufferSize = that.Options.ReadBuffer
 		p.Eloop = loop
 		p.ErrInfoChan = make(chan error, that.Options.GoroutineSize/2)
 		p.Pool = that.Pool

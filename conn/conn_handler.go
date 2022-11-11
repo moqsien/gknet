@@ -5,8 +5,10 @@ import (
 	"github.com/moqsien/gknet/sys"
 )
 
+// TODO: Poller.Buffer should be concurrency safe.
 func (that *Conn) ReadFromFd() error {
-	n, err := sys.Read(that.Fd, that.Poller.Buffer)
+	buf := that.GetBufferFromPool()
+	n, err := sys.Read(that.Fd, buf)
 	if err != nil || n == 0 {
 		if err == sys.EAGAIN {
 			return nil
@@ -17,7 +19,7 @@ func (that *Conn) ReadFromFd() error {
 		}
 		return that.Close()
 	}
-	that.Buffer = that.Poller.Buffer[:n]
+	that.Buffer = buf[:n]
 	err = that.Handler.OnTrack(that.Ctx)
 	that.InBuffer.Write(that.Buffer)
 	return err

@@ -18,16 +18,16 @@ import (
 )
 
 type Poller struct {
-	pollFd      int             // poll file descriptor
-	pollEvFd    int             // poll event file descriptor
-	priorTasks  queue.TaskQueue // tasks with priority
-	tasks       queue.TaskQueue // tasks
-	toTrigger   int32           // atomic number to trigger tasks
-	Eloop       iface.IELoop    // eventloop
-	Buffer      []byte          // buffer for reading from fd
-	Pool        *ants.Pool      // goroutine pool for running tasks
-	ErrInfoChan chan error      // channel for sending error info
-	wg          *sync.WaitGroup // wait for tasks to complete
+	pollFd         int             // poll file descriptor
+	pollEvFd       int             // poll event file descriptor
+	priorTasks     queue.TaskQueue // tasks with priority
+	tasks          queue.TaskQueue // tasks
+	toTrigger      int32           // atomic number to trigger tasks
+	Eloop          iface.IELoop    // eventloop
+	Pool           *ants.Pool      // goroutine pool for running tasks
+	ErrInfoChan    chan error      // channel for sending error info
+	wg             *sync.WaitGroup // wait for tasks to complete
+	ReadBufferSize int             // size of read buffer when reading from fd
 }
 
 func (that *Poller) GetFd() int {
