@@ -8,9 +8,10 @@ import (
 	"github.com/moqsien/processes/logger"
 
 	"github.com/moqsien/gknet/gkhttp"
+	"github.com/moqsien/gknet/iface"
 )
 
-var server *gkhttp.GkGin = gkhttp.NewGin()
+var server *gkhttp.GkGin = gkhttp.NewGin(&gkhttp.Opts{Options: &iface.Options{AsyncReadWriteFd: true}})
 
 func Hello(c *gin.Context) {
 	logger.Println("[gkgin server]param a received value: ", c.Query("a"))

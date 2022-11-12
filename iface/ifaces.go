@@ -39,6 +39,7 @@ type IEventHandler interface {
 
 type IPollCallback interface {
 	Callback(fd int, events uint32) error
+	AsyncCallback(fd int, events uint32) chan error
 	IsBlocked() bool
 }
 

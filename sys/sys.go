@@ -14,8 +14,11 @@ import (
 
 type EventHandler interface {
 	WriteToFd() error
+	AsyncWriteToFd()
 	ReadFromFd() error
+	AsyncReadFromFd()
 	Close() error
+	AsyncClose()
 }
 
 type WaitCallback func(fd int, events uint32, trigger bool) (newTrigger bool, err error)
@@ -97,6 +100,23 @@ func HandleEvents(events uint32, handler EventHandler) (err error) {
 		}
 	}
 	return
+}
+
+func AsyncHandleEvents(events uint32, handler EventHandler) {
+	if events&ClosedFdEvents != 0 { // only for darwin.
+		handler.AsyncClose()
+		return
+	}
+
+	if events&OutEvents != 0 {
+		handler.AsyncWriteToFd()
+		return
+	}
+
+	if events&InEvents != 0 {
+		handler.AsyncReadFromFd()
+		return
+	}
 }
 
 var _zero uintptr

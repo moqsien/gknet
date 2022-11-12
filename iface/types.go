@@ -47,6 +47,7 @@ type Options struct {
 	ConnAsyncCallback AsyncCallback
 	WritevChunkSize   int
 	GoroutineSize     int
+	AsyncReadWriteFd  bool
 }
 
 type Context struct {

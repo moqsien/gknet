@@ -18,16 +18,17 @@ import (
 )
 
 type Poller struct {
-	pollFd         int             // poll file descriptor
-	pollEvFd       int             // poll event file descriptor
-	priorTasks     queue.TaskQueue // tasks with priority
-	tasks          queue.TaskQueue // tasks
-	toTrigger      int32           // atomic number to trigger tasks
-	Eloop          iface.IELoop    // eventloop
-	Pool           *ants.Pool      // goroutine pool for running tasks
-	ErrInfoChan    chan error      // channel for sending error info
-	wg             *sync.WaitGroup // wait for tasks to complete
-	ReadBufferSize int             // size of read buffer when reading from fd
+	pollFd           int             // poll file descriptor
+	pollEvFd         int             // poll event file descriptor
+	priorTasks       queue.TaskQueue // tasks with priority
+	tasks            queue.TaskQueue // tasks
+	toTrigger        int32           // atomic number to trigger tasks
+	Eloop            iface.IELoop    // eventloop
+	Pool             *ants.Pool      // goroutine pool for running tasks
+	ErrForStop       chan error      // channel for sending error info to stop the whole engine
+	wg               *sync.WaitGroup // wait for tasks to complete
+	ReadBufferSize   int             // size of read buffer when reading from fd
+	AsyncReadWriteFd bool            // whether read/write fd asyncly
 }
 
 func (that *Poller) GetFd() int {
@@ -88,7 +89,11 @@ func (that *Poller) runTask(task *PollTask) (err error) {
 			switch errInfo := task.Go(task.Arg); errInfo {
 			case nil:
 			case errs.ErrEngineShutdown, errs.ErrAcceptSocket:
-				that.ErrInfoChan <- errInfo
+				select {
+				case that.ErrForStop <- errInfo:
+				default:
+					break
+				}
 			default:
 				logger.Warningf("error occurs in user-defined function, %v", err)
 			}
@@ -101,9 +106,16 @@ func (that *Poller) runTask(task *PollTask) (err error) {
 
 func (that *Poller) Start(callback iface.IPollCallback) error {
 	var wcb sys.WaitCallback = func(fd int, events uint32, trigger bool) (bool, error) {
-		var err error
+		var (
+			err     error
+			errChan chan error
+		)
 		if !callback.IsBlocked() {
-			err = callback.Callback(fd, events)
+			if that.AsyncReadWriteFd {
+				errChan = callback.AsyncCallback(fd, events)
+			} else {
+				err = callback.Callback(fd, events)
+			}
 		}
 		if trigger {
 			trigger = false
@@ -117,7 +129,7 @@ func (that *Poller) Start(callback iface.IPollCallback) error {
 			that.wg.Wait()
 
 			select {
-			case err = <-that.ErrInfoChan:
+			case err = <-that.ErrForStop:
 				return trigger, err
 			default:
 				break
@@ -135,7 +147,7 @@ func (that *Poller) Start(callback iface.IPollCallback) error {
 			that.wg.Wait()
 
 			select {
-			case err = <-that.ErrInfoChan:
+			case err = <-that.ErrForStop:
 				return trigger, err
 			default:
 				break
@@ -148,8 +160,17 @@ func (that *Poller) Start(callback iface.IPollCallback) error {
 				}
 			}
 		}
-		if callback.IsBlocked() {
+		if callback.IsBlocked() { // for accpeting.
 			err = callback.Callback(fd, events)
+		}
+
+		if errChan != nil {
+			select {
+			case err = <-errChan:
+				return false, err
+			default:
+				break
+			}
 		}
 		if err != nil {
 			return false, err

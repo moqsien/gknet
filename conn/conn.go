@@ -35,6 +35,7 @@ type Conn struct {
 	Opened          bool
 	Handler         iface.IEventHandler
 	WritevChunkSize int
+	ErrChan         chan error
 	lock            *sync.Mutex
 }
 
@@ -53,8 +54,9 @@ type ConnOpts struct {
 // new Conn
 func NewTCPConn(fd int) (c *Conn) {
 	c = &Conn{
-		Fd:   fd,
-		lock: &sync.Mutex{},
+		Fd:      fd,
+		ErrChan: make(chan error, 1),
+		lock:    &sync.Mutex{},
 	}
 	return
 }

@@ -134,8 +134,9 @@ func (that *Engine) startReactors(numOfLoops int) error {
 			loop.Index = i
 			p.ReadBufferSize = that.Options.ReadBuffer
 			p.Eloop = loop
-			p.ErrInfoChan = make(chan error, that.Options.GoroutineSize/2)
+			p.ErrForStop = make(chan error, 2)
 			p.Pool = that.Pool
+			p.AsyncReadWriteFd = that.Options.AsyncReadWriteFd
 			loop.Poller = p
 			loop.Engine = that
 			loop.ConnList = make(map[int]net.Conn)
@@ -154,7 +155,7 @@ func (that *Engine) startReactors(numOfLoops int) error {
 		loop.Index = -1
 		p.ReadBufferSize = that.Options.ReadBuffer
 		p.Eloop = loop
-		p.ErrInfoChan = make(chan error, that.Options.GoroutineSize/2)
+		p.ErrForStop = make(chan error, 2)
 		p.Pool = that.Pool
 		loop.Poller = p
 		loop.Engine = that
