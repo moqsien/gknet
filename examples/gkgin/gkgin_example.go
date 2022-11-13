@@ -1,6 +1,7 @@
 package gkgin
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
@@ -40,8 +41,15 @@ func runClient() {
 	resp.Body.Close()
 }
 
+func stop() {
+	time.Sleep(20 * time.Second)
+	fmt.Println("stop gkgin server.")
+	server.Close()
+}
+
 func RunGkGin() {
 	go runClient()
+	go stop()
 	server.GET("/", Hello)
 	server.Run(":8082")
 }
