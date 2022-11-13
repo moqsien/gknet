@@ -5,6 +5,7 @@ package eloop
 
 import (
 	"errors"
+	"sync"
 
 	"github.com/moqsien/processes/logger"
 
@@ -23,6 +24,11 @@ func (that *EloopEventAccept) Callback(fd int, events uint32) error {
 }
 
 func (that *EloopEventAccept) AsyncCallback(fd int, events uint32) (errChan chan error) {
+	logger.Println("Not implemented!")
+	return
+}
+
+func (that *EloopEventAccept) AsyncWaitCallback(fd int, events uint32, wg *sync.WaitGroup) (errChan chan error) {
 	logger.Println("Not implemented!")
 	return
 }
@@ -56,5 +62,20 @@ func (that *EloopEventHandleConn) AsyncCallback(fd int, events uint32) (errChan 
 		sys.AsyncHandleEvents(events, c)
 		return c.ErrChan
 	}
+	logger.Warningf("Fd not found: %d", fd)
+	return
+}
+
+func (that *EloopEventHandleConn) AsyncWaitCallback(fd int, events uint32, wg *sync.WaitGroup) (errChan chan error) {
+	if fd == that.Eloop.Poller.GetPollEvFd() || fd == 0 {
+		sys.Read(fd, pollEvBufffer)
+		return
+	}
+	if connection, found := that.Eloop.ConnList[fd]; found {
+		c := connection.(*conn.Conn)
+		sys.AsyncHandleEventsAndWait(events, c, wg)
+		return c.ErrChan
+	}
+	logger.Warningf("Fd not found: %d", fd)
 	return
 }

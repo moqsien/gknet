@@ -5,6 +5,7 @@ package sys
 
 import (
 	"runtime"
+	"sync"
 	"syscall"
 	"time"
 	"unsafe"
@@ -15,13 +16,15 @@ import (
 type EventHandler interface {
 	WriteToFd() error
 	AsyncWriteToFd()
+	AsyncWriteToFdAndWait(wg *sync.WaitGroup)
 	ReadFromFd() error
 	AsyncReadFromFd()
+	AsyncReadFromFdAndWait(wg *sync.WaitGroup)
 	Close() error
 	AsyncClose()
 }
 
-type WaitCallback func(fd int, events uint32, trigger bool) (newTrigger bool, err error)
+type WaitCallback func(fd int, events uint32, trigger bool, wg *sync.WaitGroup) (newTrigger bool, err error)
 
 type DoError func(err error) error
 
@@ -115,6 +118,23 @@ func AsyncHandleEvents(events uint32, handler EventHandler) {
 
 	if events&InEvents != 0 {
 		handler.AsyncReadFromFd()
+		return
+	}
+}
+
+func AsyncHandleEventsAndWait(events uint32, handler EventHandler, wg *sync.WaitGroup) {
+	if events&ClosedFdEvents != 0 { // only for darwin.
+		handler.AsyncClose()
+		return
+	}
+
+	if events&OutEvents != 0 {
+		handler.AsyncWriteToFdAndWait(wg)
+		return
+	}
+
+	if events&InEvents != 0 {
+		handler.AsyncReadFromFdAndWait(wg)
 		return
 	}
 }

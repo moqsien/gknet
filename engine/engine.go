@@ -136,7 +136,6 @@ func (that *Engine) startReactors(numOfLoops int) error {
 			p.Eloop = loop
 			p.ErrForStop = make(chan error, 2)
 			p.Pool = that.Pool
-			p.AsyncReadWriteFd = that.Options.AsyncReadWriteFd
 			loop.Poller = p
 			loop.Engine = that
 			loop.ConnList = make(map[int]net.Conn)

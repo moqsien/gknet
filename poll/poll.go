@@ -18,17 +18,16 @@ import (
 )
 
 type Poller struct {
-	pollFd           int             // poll file descriptor
-	pollEvFd         int             // poll event file descriptor
-	priorTasks       queue.TaskQueue // tasks with priority
-	tasks            queue.TaskQueue // tasks
-	toTrigger        int32           // atomic number to trigger tasks
-	Eloop            iface.IELoop    // eventloop
-	Pool             *ants.Pool      // goroutine pool for running tasks
-	ErrForStop       chan error      // channel for sending error info to stop the whole engine
-	wg               *sync.WaitGroup // wait for tasks to complete
-	ReadBufferSize   int             // size of read buffer when reading from fd
-	AsyncReadWriteFd bool            // whether read/write fd asyncly
+	pollFd         int             // poll file descriptor
+	pollEvFd       int             // poll event file descriptor
+	priorTasks     queue.TaskQueue // tasks with priority
+	tasks          queue.TaskQueue // tasks
+	toTrigger      int32           // atomic number to trigger tasks
+	Eloop          iface.IELoop    // eventloop
+	Pool           *ants.Pool      // goroutine pool for running tasks
+	ErrForStop     chan error      // channel for sending error info to stop the whole engine
+	wg             *sync.WaitGroup // wait for tasks to complete
+	ReadBufferSize int             // size of read buffer when reading from fd
 }
 
 func (that *Poller) GetFd() int {
@@ -72,20 +71,22 @@ func (that *Poller) AddPriorTask(f iface.PollTaskFunc, arg iface.PollTaskArg) (e
 	return
 }
 
-func (that *Poller) runTask(task *PollTask) (err error) {
+func (that *Poller) runTask(task *PollTask, wg *sync.WaitGroup) (err error) {
+	wg.Add(1)
 	if that.Pool == nil {
+		defer wg.Done()
 		switch err = task.Go(task.Arg); err {
 		case nil:
+			return
 		case errs.ErrEngineShutdown, errs.ErrAcceptSocket:
-			that.wg.Done()
 			return err
 		default:
 			logger.Warningf("error occurs in user-defined function, %v", err)
-			that.wg.Done()
 			return nil
 		}
 	} else {
 		that.Pool.Submit(func() {
+			defer wg.Done()
 			switch errInfo := task.Go(task.Arg); errInfo {
 			case nil:
 			case errs.ErrEngineShutdown, errs.ErrAcceptSocket:
@@ -98,41 +99,28 @@ func (that *Poller) runTask(task *PollTask) (err error) {
 				logger.Warningf("error occurs in user-defined function, %v", err)
 			}
 			PutTask(task)
+			return
 		})
 	}
-	that.wg.Done()
 	return
 }
 
 func (that *Poller) Start(callback iface.IPollCallback) error {
-	var wcb sys.WaitCallback = func(fd int, events uint32, trigger bool) (bool, error) {
+	var wcb sys.WaitCallback = func(fd int, events uint32, trigger bool, wg *sync.WaitGroup) (bool, error) {
 		var (
 			err     error
 			errChan chan error
 		)
-		if !callback.IsBlocked() {
-			if that.AsyncReadWriteFd {
-				errChan = callback.AsyncCallback(fd, events)
-			} else {
-				err = callback.Callback(fd, events)
-			}
+		if !callback.IsBlocked() { // for connection read and write.
+			errChan = callback.AsyncWaitCallback(fd, events, wg)
 		}
+
 		if trigger {
 			trigger = false
 			t := that.priorTasks.Dequeue()
 			for ; t != nil; t = that.priorTasks.Dequeue() {
 				task := t.(*PollTask)
-				that.wg.Add(1)
-				that.runTask(task)
-			}
-
-			that.wg.Wait()
-
-			select {
-			case err = <-that.ErrForStop:
-				return trigger, err
-			default:
-				break
+				that.runTask(task, wg)
 			}
 
 			for i := 0; i < iface.MaxTasks; i++ {
@@ -140,12 +128,10 @@ func (that *Poller) Start(callback iface.IPollCallback) error {
 					break
 				}
 				task := t.(*PollTask)
-				that.wg.Add(1)
-				that.runTask(task)
+				that.runTask(task, wg)
 			}
 
-			that.wg.Wait()
-
+			wg.Wait()
 			select {
 			case err = <-that.ErrForStop:
 				return trigger, err
@@ -159,7 +145,10 @@ func (that *Poller) Start(callback iface.IPollCallback) error {
 					trigger = true
 				}
 			}
+		} else {
+			wg.Wait()
 		}
+
 		if callback.IsBlocked() { // for accpeting.
 			err = callback.Callback(fd, events)
 		}
@@ -177,7 +166,7 @@ func (that *Poller) Start(callback iface.IPollCallback) error {
 		}
 		return trigger, err
 	}
-	return sys.WaitPoll(that.pollFd, that.pollEvFd, wcb, doWaitCallbackErr)
+	return sys.WaitPoll(that.pollFd, that.pollEvFd, wcb, doWaitCallbackErr, that.wg)
 }
 
 func doWaitCallbackErr(err error) error {

@@ -89,7 +89,7 @@ func shrink(size int) (newSize int, events []syscall.EpollEvent) {
 	return
 }
 
-func WaitPoll(pollFd, pollEvFd int, w WaitCallback, doCallbackErr DoError) error {
+func WaitPoll(pollFd, pollEvFd int, w WaitCallback, doCallbackErr DoError, wg *sync.WaitGroup) error {
 	size := InitPollSize
 	events := make([]syscall.EpollEvent, size)
 	var (
@@ -116,9 +116,9 @@ func WaitPoll(pollFd, pollEvFd int, w WaitCallback, doCallbackErr DoError) error
 				syscall.Read(pollEvFd, pollEvBuffer)
 			}
 			if i == n-1 {
-				trigger, err = w(fd, ev.Events, trigger)
+				trigger, err = w(fd, ev.Events, trigger, wg)
 			} else {
-				trigger, err = w(fd, ev.Events, false)
+				trigger, err = w(fd, ev.Events, false, wg)
 			}
 			err = doCallbackErr(err)
 			if err != nil {

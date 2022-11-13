@@ -1,6 +1,8 @@
 package conn
 
 import (
+	"sync"
+
 	"github.com/moqsien/processes/logger"
 
 	"github.com/moqsien/gknet/iface"
@@ -70,6 +72,34 @@ func (that *Conn) AsyncReadFromFd() {
 	})
 }
 
+func (that *Conn) AsyncReadFromFdAndWait(wg *sync.WaitGroup) {
+	wg.Add(1)
+	that.Poller.Pool.Submit(func() {
+		that.lock.Lock() // can be removed.
+		defer that.lock.Unlock()
+		defer wg.Done()
+		buf := that.GetBufferFromPool()
+		n, err := sys.Read(that.Fd, buf)
+		if err != nil || n == 0 {
+			if err == sys.EAGAIN {
+				return
+			}
+			// conn closed by client.
+			if n == 0 {
+				err = sys.ECONNRESET
+			}
+			err = that.Close()
+			that.sendErr(err)
+			return
+		}
+		that.Buffer = buf[:n]
+		err = that.Handler.OnTrack(that.Ctx)
+		that.InBuffer.Write(that.Buffer)
+		that.PutBufferToPool(buf)
+		that.sendErr(err)
+	})
+}
+
 func (that *Conn) WriteToFd() error {
 	iov := that.OutBuffer.Peek(-1)
 	var (
@@ -103,6 +133,43 @@ func (that *Conn) AsyncWriteToFd() {
 	that.Poller.Pool.Submit(func() {
 		that.lock.Lock()
 		defer that.lock.Unlock()
+		iov := that.OutBuffer.Peek(-1)
+		var (
+			n   int
+			err error
+		)
+		if len(iov) > 1 {
+			if len(iov) > iface.IovMax {
+				iov = iov[:iface.IovMax]
+			}
+			n, err = sys.Writev(that.Fd, iov)
+		} else {
+			n, err = sys.Write(that.Fd, iov[0])
+		}
+		that.OutBuffer.Discard(n)
+		switch err {
+		case nil:
+		case sys.EAGAIN:
+			return
+		default:
+			err = that.Close()
+			that.sendErr(err)
+			return
+		}
+
+		if that.OutBuffer.IsEmpty() {
+			that.Poller.ModRead(that)
+		}
+		return
+	})
+}
+
+func (that *Conn) AsyncWriteToFdAndWait(wg *sync.WaitGroup) {
+	wg.Add(1)
+	that.Poller.Pool.Submit(func() {
+		that.lock.Lock()
+		defer that.lock.Unlock()
+		defer wg.Done()
 		iov := that.OutBuffer.Peek(-1)
 		var (
 			n   int
