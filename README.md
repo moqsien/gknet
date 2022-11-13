@@ -18,7 +18,7 @@ Certainly gknet benifts a lot from gnet, but it also brings something new.
 ## What does gknet do better than gnet?
 - More readable code. 
 - A ready-made http framework with TLS.
-- Shared and configurable goroutine pool for events.
+- Shared and configurable goroutine pool for events. So, events or tasks can be handled concurrently in one loop.
 - More open, which means we do not need internals when sometimes are only interested in a special package or implementation.
 
 ## How to use
