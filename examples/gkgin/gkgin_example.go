@@ -43,7 +43,7 @@ func runClient() {
 
 func stop() {
 	time.Sleep(20 * time.Second)
-	fmt.Println("stop gkgin server.")
+	fmt.Println("[gkgin stop] close gkgin server.")
 	server.Close()
 }
 
