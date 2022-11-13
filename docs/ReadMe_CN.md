@@ -1,4 +1,4 @@
-[gknet](https://github.com/moqsien/gknet)
+[En](https://github.com/moqsien/gknet) | [中文](https://github.com/moqsien/gknet/blob/main/docs/ReadMe_CN.md)
 
 ---------------------------
 ## 什么是gknet？
